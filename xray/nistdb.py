@@ -17,6 +17,9 @@ import os
 
 DB_FILE = os.path.join(os.path.dirname(__file__), 'data', 'NIST_xray_all_elements_0_to_30keV.txt')
 
+"""
+TYPE_* indicates the source for the emission line / absorption edge data
+"""
 TYPE_UNKNOWN = 0
 TYPE_THEORY = 1
 TYPE_DIRECT = 2
@@ -62,11 +65,26 @@ siegbahn_map = {
 iupac_map = {siegbahn_map[k]:k for k in siegbahn_map}
 
 class EmissionLine(object):
+  """
+  X-ray emission line data
+
+  Properties:
+    elt_name:
+      name of element (e.g. 'Au')
+    trans:
+      transition name in IUPAC notation (e.g. 'KL3')
+    energy:
+      energy of emission line (eV)
+    uncertainty:
+      uncertainty in energy value
+    type:
+      source for energy value
+  """
   def __init__(self, elt_name, trans, energy, uncertainty=0.0, type=TYPE_THEORY):
     self.elt_name = elt_name
     self.trans = trans
     self.energy = energy
-    self.uncertainty =uncertainty 
+    self.uncertainty = uncertainty
     self.type = type
 
   def __repr__(self):
@@ -81,14 +99,29 @@ class EmissionLine(object):
 
     if self.trans in iupac_map:
       s += " (%s)" % iupac_map[self.trans]
-    return s 
+    return s
 
 class AbsorptionEdge(object):
+  """
+  X-ray absorption edge data
+
+  Properties:
+    elt_name:
+      name of element (e.g. 'Au')
+    edge:
+      name of edge (e.g. 'L3')
+    energy:
+      energy of absorption edge (eV)
+    uncertainty:
+      uncertainty in energy value
+    type:
+      source for energy value
+  """
   def __init__(self, elt_name, edge, energy, uncertainty=0.0, type=TYPE_THEORY):
     self.elt_name = elt_name
     self.edge = edge
     self.energy = energy
-    self.uncertainty = uncertainty 
+    self.uncertainty = uncertainty
     self.type = type
 
   def __repr__(self):
@@ -102,10 +135,23 @@ class AbsorptionEdge(object):
     return s
 
 class Element(object):
+  """
+  An element
+
+  Properties:
+    name:
+      Chemical symbol for element (e.g. 'Ag')
+    lines:
+      dictionary of EmissionLine objects keyed by IUPAC transition name
+    edges:
+      dictionary of AbsorptionEdge objects keyed by IUPAC shell name
+  """
+
   def __init__(self, name, lines={}, edges={}):
+    from collections import OrderedDict
     self.name = name
-    self.lines = {}
-    self.edges = {}
+    self.lines = OrderedDict()
+    self.edges = OrderedDict()
 
   def siegbahn(self):
     lines = {}
@@ -160,7 +206,7 @@ def load_nist_database(filename):
       elt.lines[trans] = line
       lines.append(line)
 
-  return by_elt, lines, edges 
+  return by_elt, lines, edges
 
 class Database(object):
   _singleton = None
@@ -204,6 +250,9 @@ def _closest_in_energy(obj_list, energy, before=0, after=0):
   upper = min(closest_index + after + 1, len(energies))
   return obj_list[lower:upper]
 
+def _in_energy_range(obj_list, energy_min, energy_max):
+  return [o for o in obj_list if energy_min < o.energy < energy_max ]
+
 def line_energies():
   return _energies(lines())
 
@@ -212,9 +261,39 @@ def edge_energies():
 
 def closest_lines(energy, before=0, after=0):
   return _closest_in_energy(lines(), energy, before, after)
-closest_line = closest_lines
+
+def closest_line(energy):
+  try:
+    return closest_lines(energy)[0]
+  except IndexError:
+    return None
+
+def lines_in_range(energy_min, energy_max):
+  """
+  Return a list of emission lines in the supplied energy range
+
+  Parameters:
+    energy_min: minimum energy bound
+    energy_max: maximum energy bound
+  """
+  return _in_energy_range(lines(), energy_min, energy_max)
 
 def closest_edges(energy, before=0, after=0):
   return _closest_in_energy(edges(), energy, before, after)
-closest_edge = closest_edges
+
+def closest_edge(energy):
+  try:
+    return closest_edges(energy)[0]
+  except IndexError:
+    return None
+
+def edges_in_range(energy_min, energy_max):
+  """
+  Return a list of absortion edges in the supplied energy range
+
+  Parameters:
+    energy_min: minimum energy bound
+    energy_max: maximum energy bound
+  """
+  return _in_energy_range(edges(), energy_min, energy_max)
 
