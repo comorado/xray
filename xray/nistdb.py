@@ -230,6 +230,15 @@ def db():
     SHARED_DB = load_nist_database(DB_FILE)
   return SHARED_DB
 
+def element(elt):
+  import string
+  if type(elt) == int:
+    from elements import atomic_number
+    elt = atomic_number[elt]
+  elif elt[0] not in string.uppercase:
+    elt = string.upper(elt[0]) + elt[1:]
+  return elements().get(elt, [])
+
 def elements():
   return db()[0]
 
