@@ -67,16 +67,17 @@ def rhop(p, pF=1.0, T=0, mu=None):
   else:
     return rho * f(p**2/2, T, mu)
 
-def rhoe(energy, m=1.0):
+def rhoe(energy, V=1.0, m=1.0):
   """
   DoS for a Fermi Gas
 
   Parameters:
     energy: energy values to evaluate rhoE at
+    V: unit-cell volume (defaults to 1.0)
     m: effective mass (in units of electron mass)
   """
 
-  return m**1.5 * SPIN_DEGENERACY / (np.sqrt(2)*pi**2) * np.sqrt(energy)
+  return m**1.5 * SPIN_DEGENERACY / (np.sqrt(2)*pi**2) * np.sqrt(energy) * V
 
 def rholk(k, l, V):
   """
