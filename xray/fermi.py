@@ -1,23 +1,12 @@
 import numpy as np
 from scipy.integrate import quad
 from scipy.integrate.quadpack import Inf
+from .special import sph_jn
 
 pi = np.pi
 T_MIN = 1e-8
 
 SPIN_DEGENERACY = 2
-
-def sph_jn(v, x):
-  from scipy.special import jn
-
-  mask = (x == 0) # handle division by 0
-  y = jn(v + 0.5, x)
-  y *= np.sqrt(pi/(2*(x + 1.0*mask)))
-
-  # jn(0) = delta_n
-  if v == 0 and hasattr(x, '__setitem__'): y[mask] = 1.0
-
-  return y
 
 def f(E, T, mu):
   """
@@ -103,8 +92,8 @@ def rholk(k, l, V):
 
   single_k = False
   if not hasattr(k, '__getitem__'):
-    k = np.array([k])
     single_k = True
+  k = np.array([k])
 
 
   ret = np.array([quad(lambda u: u**2 * sph_jn(l,u)**2, 0, ki*R)[0] for ki in k])
