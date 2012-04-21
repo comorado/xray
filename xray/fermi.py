@@ -1,3 +1,7 @@
+"""
+Fermi Gas calculations 
+"""
+
 import numpy as np
 from scipy.integrate import quad
 from scipy.integrate.quadpack import Inf
@@ -95,7 +99,6 @@ def rholk(k, l, V):
   if not hasattr(k, '__getitem__'):
     single_k = True
   k = np.array([k])
-
 
   ret = np.array([quad(lambda u: u**2 * sph_jn(l,u)**2, 0, ki*R)[0] for ki in k])
   i = k>0
