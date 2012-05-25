@@ -160,6 +160,30 @@ def bragg_energy(theta, d, m=None, degrees=False):
 
   return HC/(2*d) / np.sin(theta)
 
+def bragg_denergy(theta, d, m=None, degrees=False):
+  """
+  -dE/dtheta at Bragg angle `theta` from the `m` planes of a crystal with lattice spacing `d` 
+
+  Parameters
+  ----------
+    theta - Bragg angle (units depend on value of `degrees`
+    d - lattice spacing in Angstroms
+    m - 3-vector of Miller indices (h,k,l)
+    degrees - if True, theta is in degrees, otherwise radians
+
+  Returns
+  -------
+    energy in eV
+  """
+  if m is not None:
+    d /= np.linalg.norm(m)
+
+  if degrees:
+    theta = rad(theta)
+
+  return HC/(2*d) * np.cos(theta) / np.sin(theta)**2
+
+
 #
 # entry points
 #
