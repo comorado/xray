@@ -9,12 +9,8 @@ def sph_jn(v, x):
   """
   from scipy.special import jn
 
-  single_x = False
-  if not hasattr(x, '__getitem__'):
-    x = [x]
-    single_x = True
-
-  x = np.array(x)
+  single_x = np.isscalar(x)
+  x = np.atleast_1d(x)
 
   y = jn(v + 0.5, x)
   i = (x != 0)

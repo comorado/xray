@@ -95,10 +95,8 @@ def rholk(k, l, V):
 
   R = (3/(4*pi)*V)**(1/3.)
 
-  single_k = False
-  if not hasattr(k, '__getitem__'):
-    single_k = True
-  k = np.array([k])
+  single_k = np.isscalar(k)
+  k = np.atleast_1d(k)
 
   ret = np.array([quad(lambda u: u**2 * sph_jn(l,u)**2, 0, ki*R)[0] for ki in k])
   i = k>0
