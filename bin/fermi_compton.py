@@ -38,7 +38,7 @@ pq = np.linspace(pq_min, pq_max, npq)
 
 mu = None
 if T > 0:
-  mu = 
+  raise Exception("T > 0 not yet implemented")
 
 if T == 0:
   jpq = compton.fermi_profile(args.N, args.V)
