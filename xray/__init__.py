@@ -2,7 +2,9 @@ import bragg, \
        compton, \
        const, \
        elements, \
+       feff, \
        fermi, \
+       lattice, \
        nistdb
 
 __all__ = [
@@ -11,6 +13,8 @@ __all__ = [
   'const',
   'elements',
   'fermi',
+  'feff',
+  'lattice',
   'nistdb',
   ]
 
