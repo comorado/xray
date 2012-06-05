@@ -6,11 +6,55 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.integrate.quadpack import Inf
 from .special import sph_jn
+import const
 
 pi = np.pi
 T_MIN = 1e-8
 
 SPIN_DEGENERACY = 2
+
+# effective Fermi gas parameters
+elt_info = {
+    'Li': {
+      'N': 1,
+      'a': 3.51,
+      'V': 21.62,
+      'kF': 1.11,
+    },
+    'Be': {
+      'N': 2, # number of valence electrons per atom
+      'a': 2.291, # lattice param in A
+      'c': 3.581, # lattice param in A
+      'V': 8.1374, # atomic volume in A^3
+      'kF': 1.938, # fermi momentum in A^-1
+    },
+    'Na': {
+      'N': 1,
+      'a': 4.2906,
+      'V': 39.4934,
+      'kF': 0.9084,
+    },
+    'Mg': {
+      'N': 2,
+      'a': 3.2094,
+      'c': 5.2108,
+      'V': 23.241,
+      'kF': 1.366,
+    },
+}
+
+CONVERSION = {
+    'N': 1,
+    'a': 1/const.BOHR,
+    'b': 1/const.BOHR,
+    'c': 1/const.BOHR,
+    'V': 1/const.BOHR**3,
+    'kF': const.BOHR,
+}
+
+# convert to atomic units
+elt_info_au = {k:{kk:CONVERSION[kk]*elt_info[k][kk] for kk in elt_info[k]} for k in elt_info}
+
 
 def f(E, T, mu):
   """
