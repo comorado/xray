@@ -2,6 +2,7 @@ from numpy import sqrt, sin, cos, pi
 
 # lattice structures
 ISOMETRIC     = 0
+CUBIC         = ISOMETRIC
 TETRAGONAL    = 1
 HEXAGONAL     = 2
 TRIGONAL      = 3
