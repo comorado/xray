@@ -25,4 +25,4 @@ def fermi_profile(pq, N, V):
   from .fermi import fermi_momentum 
 
   pf = fermi_momentum(N/float(V))
-  return V / (2 * np.pi)**2 * (pf**2 - pq**2) * (pf >= pq)
+  return V / (2 * np.pi)**2 * (pf**2 - pq**2) * (pf >= np.abs(pq))
