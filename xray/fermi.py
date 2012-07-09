@@ -192,3 +192,69 @@ def mu_T(N, V, T, disp=False):
 
   return mu
 
+def mu_fit(N,V,T):
+  """ From Ichimaru Statistical Plasma Physics Volume II """
+  EF = fermi_energy(N/V)
+  #if T == 0: return EF
+
+  A = 0.25954
+  B = 0.072
+  b = 0.858
+  x = T / EF
+  return T * (-1.5*np.log(x) + np.log(4/3/np.sqrt(pi)) + A*x**(-b+1) + (B * x**(-(b+1)/2)) / (1 + A * x**-b))
+
+def mu_fit_zimmerman(n, T):
+  """
+  Interpolating function for Electron Gas chemical potential mu
+  Taken from Kremp "Physics of non-ideal plasmas" p 13
+  Originally from Zimmermann 1988
+
+  Parameters:
+    n: particle density (A^-3)
+    T: energy in eV
+
+  """
+  l_th = np.sqrt(2*pi*const.HBARC / const.MC2 / T)
+  y = n * l_th**3 / 3
+
+  return T * (
+      (np.log(y) + 0.3536 * y - 0.00495 * y**2 + 0.000125*y**3) * (y < 5.5) + 
+      (1.209 * y**(2/3.) - 0.6803 * y**(-2/3.) - 0.85 * y**-2) * (y >= 5.5)
+    )
+
+#
+# RPA functions
+#
+
+def rpa_epsilon(q,w, kf):
+  m = 1.0
+  e = 1
+  Ef = kf**2 / 2.0 / m
+  Eq = q**2 / 2.0 / m
+  vf = kf / m
+  qtf = np.sqrt(4*m*e**2 * kf / pi)
+
+  #print "kf: ", kf
+  #print "Ef: ", Ef
+  #print "q: ", q
+  #print "Eq: ", Eq
+
+  eps1 = 1 + (qtf**2 / q**2 / 2) * (1 + m**2 / (2 * kf * q**3) * (
+           (4*Ef*Eq - (Eq+w)**2) * np.log(abs((Eq+q*vf+w)/(Eq-q*vf+w))) +
+           (4*Ef*Eq - (Eq-w)**2) * np.log(abs((Eq+q*vf-w)/(Eq-q*vf-w)))))
+
+  if q <= 2*kf:
+    if q*vf - Eq >= w >= 0:
+      eps2 = 2 * w * e**2 * m**2 / q**3
+    elif Eq+q*vf >= w >= q*vf - Eq:
+      eps2 = (e**2 * m / q**3) * (kf**2 - (m/q)**2 * (w - Eq)**2)
+    elif w >= Eq + q*vf:
+      eps2 = 0
+  else:
+    if Eq + q*vf >= w >= Eq - q*vf:
+      eps2 = (e**2 * m / q**3) * (kf**2 - (m/q)**2 * (w - Eq)**2)
+    else:
+      eps2 = 0
+
+  return eps1 + 1j * eps2
+
