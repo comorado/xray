@@ -164,27 +164,26 @@ def rhole(energy, l, V):
   k = np.sqrt(2*energy)
   return rholk(k, l, V) * k
 
-def mu_T(rhoe_func, n, T, args=(), disp=False):
+def mu_T(N, V, T, disp=False):
   """
   Chemical potental at temperature T
 
   Parameters:
-    rhoe_func: density of states function
-      must take energy as its first parameter
-    n: electronic density (electrons / bohr^3)
+    N: number of electrons valence electrons per atom
+    V: atomic volume (bohr^3)
     T: temperature (in energy units)
     args: any additional arguments to pass on to rhoe_func
   """
 
   def occupied(energy, mu):
-    return rhoe_func(energy, *args) * f(energy, T, mu)
+    return rhoe(energy, V) * f(energy, T, mu)
 
   def nmu (mu):
     return quad(occupied, 0, Inf, mu)[0]
 
   from scipy.optimize import fmin
 
-  ret = fmin(lambda mu: np.abs(n-nmu(mu)), fermi_energy(n), full_output=True, disp=disp)
+  ret = fmin(lambda mu: np.abs(N-nmu(mu)), fermi_energy(N/V)+0.2, full_output=True, disp=disp)
 
   mu = ret[0][0]
 
