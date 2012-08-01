@@ -227,6 +227,12 @@ def mu_fit_zimmerman(n, T):
 #
 
 def rpa_epsilon(q,w, kf):
+
+  """
+  This expression is from page 437 of Mahan, Many Particle Physics (1990) Eqs (5.5.5 and 5.5.6)
+
+  There are currently some instabilities at boundaries between different regions, but the overall structure looks correct.
+  """
   m = 1.0
   e = 1
   Ef = kf**2 / 2.0 / m
@@ -257,4 +263,27 @@ def rpa_epsilon(q,w, kf):
       eps2 = 0
 
   return eps1 + 1j * eps2
+
+def rpa_epsilon2_T(q,omega, mu, T):
+  """
+  Eq 5.5.14 in Mahan
+  """
+
+  eq = q**2 / 2
+  ep = (eq + omega)**2 / (4 * eq)
+  em = (eq - omega)**2 / (4 * eq)
+
+  return (2 * T / q**3) * np.log((1 + np.exp((mu-em)/T)) / (1+np.exp((mu-ep)/T)))
+
+def mermin_epsilon(q, w, kf, nu):
+
+  eps1rpa = rpa_epsilon(q,w+1j*nu,kf)
+  eps0rpa = rpa_epsilon(q,0,kf)
+
+  return 1 + ( (1 + 1j*nu/w) * (eps1rpa - 1) /
+               (1 + (1j*nu/w) * (eps1rpa - 1) / (eps0rpa - 1)) )
+
+
+
+
 
