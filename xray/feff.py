@@ -158,6 +158,15 @@ def plot_ldos(ldos, T, mu):
     
   pt.show()
 
+def load_atomic_wf(filename):
+  """
+  Load atomic wavefunction output from FEFF
+
+  returns list of (x,y) tuples (one for each L value)
+  """
+  wf = np.loadtxt(filename).T
+  indices = [wf[0] == i for i in np.unique(wf[0])]
+  return [(wf[2][i], wf[3][i] + 1j * wf[4][i]) for i in indices]
 
 if __name__ == "__main__":
   import sys
