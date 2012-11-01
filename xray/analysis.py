@@ -62,7 +62,7 @@ class Curve(object):
     if s is not None:
       s = s(data) if callable(s) else data[s]
 
-    return cls(x,y,s)
+    return cls(x,y,s, filename=filename)
 
   def copy(self):
     return Curve(self.x.copy(), self.y.copy(), self.s.copy() if self.s else None, **self.meta)
