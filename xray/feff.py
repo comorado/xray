@@ -158,6 +158,25 @@ def plot_ldos(ldos, T, mu):
     
   pt.show()
 
+class DensityMap(object):
+  def __init__(self, filename):
+    from .lib import fortranfile
+    f = fortranfile.FortranFile(filename)
+    self.energy = f.readReals('d')
+    self.x = f.readReals('d')
+    self.y = f.readReals('d')
+    self.density = f.readReals('f').reshape(len(self.x), len(self.y), len(self.energy))
+
+  def occupied(self, E_fermi, T=0):
+    """
+    Integrate over Fermi distribution to obtain occupied density
+
+    For T != 0, `E_fermi` should be the chemical potential!
+    """
+    from .fermi import f
+
+    return np.trapz(self.density[:,:,:] * f(self.energy, T, E_fermi), self.energy)
+
 def load_atomic_wf(filename):
   """
   Load atomic wavefunction output from FEFF
