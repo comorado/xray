@@ -1,5 +1,7 @@
-import numpy as np
+# This file uses the text encoding: utf-8
+import sys
 import operator
+import numpy as np
 
 class Curve(object):
   def __init__(self, x, y, s=None, **kwargs):
@@ -11,6 +13,12 @@ class Curve(object):
     self.s = s
 
     self.meta = kwargs
+
+  def __getattr__(self, name):
+    try:
+      return self.meta[name]
+    except KeyError:
+      raise AttributeError, "'{cls}' object has no attribute '{name}'".format(cls=self.__class__, name=name), sys.exc_info()[2]
 
   @classmethod
   def from_file(cls, filename, x=0, y=1, s=None, **kwargs):
@@ -65,7 +73,7 @@ class Curve(object):
     return cls(x,y,s, filename=filename)
 
   def copy(self):
-    return Curve(self.x.copy(), self.y.copy(), self.s.copy() if self.s else None, **self.meta)
+    return self.__class__(self.x.copy(), self.y.copy(), self.s.copy() if self.s else None, **self.meta)
 
   def plot(self, **kwargs):
     from matplotlib import pyplot as pt
@@ -87,7 +95,23 @@ class Curve(object):
 
     np.savetxt(filename, data)
 
+  def moment(self, n=0, normed=False):
+    """
+    Calculate the nth moment
 
+    Parameters:
+      n: which moment to calculate
+      normed: whether to normalize by 0th moment
+
+    Return:
+      If normed is False (default):  ∫dx y x^n
+      If normed is True: ∫dx y x^n / ∫dx y 
+
+    """
+    ret = np.trapz(self.y * self.x**n, self.x)
+    if normed: ret /= np.trapz(self.y, self.x)
+
+    return ret
 
 def _ranges_to_index(x, ranges):
   """
@@ -120,7 +144,7 @@ def interpolate(curve, new_x, left=0, right=0):
   if curve.s is not None:
     new_s = np.interp(new_x, curve.x, curve.s, left, right)
 
-  return Curve(new_x, new_y, new_s)
+  return curve.__class__(new_x, new_y, new_s)
 
 @processor
 def interpolate_spline(curve, new_x, order=3, smooth=None, der=0):
@@ -136,7 +160,7 @@ def interpolate_spline(curve, new_x, order=3, smooth=None, der=0):
   if curve.s is not None:
     new_s = np.interp(new_x, curve.x, curve.s, 0, 0)
 
-  return Curve(new_x, new_y, new_s)
+  return curve.__class__(new_x, new_y, new_s)
 
 @processor
 def extend_symmetric(curve):
@@ -169,7 +193,7 @@ def extend_symmetric(curve):
   else:
     raise ValueError("Data to be symmetrized must have x-values all positive or all negative.")
 
-  return Curve(new_x, new_y, new_s)
+  return curve.__class__(new_x, new_y, new_s)
 
 @processor
 def broaden(curve, sigma):
@@ -191,7 +215,20 @@ def broaden(curve, sigma):
     new_y = np.interp(curve.x,gx,new_y)
 
   # XXX How should uncertainty be handled (stripped for now)?
-  return Curve(curve.x, new_y)
+  return curve.__class__(curve.x, new_y)
+
+@processor
+def broaden_fwhm(curve, fwhm):
+  """
+  Broaden curve by convolving with a gaussian with full-width half-max `fwhm`.
+
+  Preconditions:
+    curve.x must be evenly spaced, and should be dense relative to sigma for results to be accurate
+  """
+
+  sigma = fwhm / (2 * np.sqrt(2*np.log(2)))
+  return curve.broaden(sigma)
+
 
 @processor
 def normalize_integral(curve, norm=1.0, xmin=None, xmax=None):
@@ -211,7 +248,7 @@ def normalize_integral(curve, norm=1.0, xmin=None, xmax=None):
   if curve.s is not None:
     new_s = curve.s * norm / n
 
-  return Curve(curve.x, new_y, new_s)
+  return curve.__class__(curve.x, new_y, new_s)
 
 
 @processor
@@ -226,7 +263,7 @@ def normalize_integral_trapz(curve, norm=1.0):
   if curve.s is not None:
     new_s = curve.s * norm / n
 
-  return Curve(curve.x, new_y, new_s)
+  return curve.__class__(curve.x, new_y, new_s)
 
 @processor
 def background_subtract(curve, fit_ranges, degree):
@@ -243,7 +280,7 @@ def background_subtract(curve, fit_ranges, degree):
 
   # XXX handle uncertainty...
 
-  return Curve(curve.x, curve.y - bg, curve.s, background_subtract=Curve(curve.x, bg))
+  return curve.__class__(curve.x, curve.y - bg, curve.s, background_subtract=curve.__class__(curve.x, bg))
 
 @processor
 def fit_gaussian(curve, fit_ranges=None, guess=(1.0,0.0,1.0)):
@@ -264,7 +301,7 @@ def fit_gaussian(curve, fit_ranges=None, guess=(1.0,0.0,1.0)):
 
   # XXX check for failure of fit
   new_y = model_gaussian(fit, curve.x)
-  return Curve(curve.x, new_y, curve.s, gaussian_parameters=fit)
+  return curve.__class__(curve.x, new_y, curve.s, gaussian_parameters=fit)
 
 @processor
 def fit_lorentzian(curve, fit_ranges=None, guess=(1.0,0.0,1.0)):
@@ -285,7 +322,7 @@ def fit_lorentzian(curve, fit_ranges=None, guess=(1.0,0.0,1.0)):
 
   # XXX check for failure of fit
   new_y = model_lorentzian(fit, curve.x)
-  return Curve(curve.x, new_y, curve.s, lorentzian_parameters=fit)
+  return curve.__class__(curve.x, new_y, curve.s, lorentzian_parameters=fit)
 
 
 def voigt(x,amp,pos,fwhm,shape):
@@ -321,7 +358,7 @@ def fit_voigt(curve, fit_ranges=None, guess=(1.0,0.0,1.0, 0.1)):
 
   # XXX check for failure of fit
   new_y = voigt(curve.x, *fit)
-  return Curve(curve.x, new_y, curve.s, voigt_parameters=fit)
+  return curve.__class__(curve.x, new_y, curve.s, voigt_parameters=fit)
 
 
 
@@ -350,7 +387,7 @@ def fit_voigt_bg(curve, fit_ranges=None, guess=(1.0,0.0,1.0, 0.1, 0, 0)):
 
   # XXX check for failure of fit
   new_y = voigt_bg(fit, curve.x)
-  return Curve(curve.x, new_y, curve.s, voigt_parameters=fit)
+  return curve.__class__(curve.x, new_y, curve.s, voigt_parameters=fit)
 
 def _savitzky_golay(y, window_size, order, deriv=0):
     r"""Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
@@ -425,7 +462,7 @@ def _savitzky_golay(y, window_size, order, deriv=0):
 @processor
 def savitzky_golay(curve, window_size, order, deriv=0):
   new_y = _savitzky_golay(curve.y, window_size, order, deriv)
-  return Curve(curve.x, new_y, curve.s)
+  return curve.__class__(curve.x, new_y, curve.s)
 
 
 
@@ -463,7 +500,7 @@ def fit_polynomial(curve, fit_ranges, degree):
   p = np.polyfit(x, y, degree)
   bg = np.polyval(p, curve.x)
 
-  return Curve(curve.x, bg, params=p)
+  return curve.__class__(curve.x, bg, params=p)
 
 @processor
 def subtract(curve, curve2, interpolate=None, **kwargs):
@@ -498,7 +535,7 @@ def subtract(curve, curve2, interpolate=None, **kwargs):
   elif curve2.s is not None:
     new_s == curve2.s
 
-  return Curve(new_x, new_y, new_s)
+  return curve.__class__(new_x, new_y, new_s)
 
 @processor
 def combine(curve, curve2, op, interpolate=None, **kwargs):
@@ -543,7 +580,7 @@ def combine(curve, curve2, op, interpolate=None, **kwargs):
   else:
     new_s = None
 
-  return Curve(new_x, new_y, new_s)
+  return curve.__class__(new_x, new_y, new_s)
 
 # standard operations
 @processor
