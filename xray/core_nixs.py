@@ -95,7 +95,7 @@ def sthetaw(r, psi, w1, w2, theta, B=0, type='IA'):
   """
   Parameters:
     r: radial coordinate (a.u.)
-    psi: radial wave fucntion (a.u.)
+    psi: radial wave function (a.u.)
     w1: incident enery (eV)
     w2: incident enery (eV)
     theta: scattering angle (degrees)
@@ -111,7 +111,7 @@ def sqw(r,psi, q, w, B=0, type='IA', l=0):
   """
   Parameters:
     r: radial coordinate (a.u.)
-    psi: radial wave fucntion (a.u.)
+    psi: radial wave function (a.u.)
     q: momentum transfer (inv. A)
     w: enery transfer (eV)
     B: binding energy (eV) (only used for PWFFA)
