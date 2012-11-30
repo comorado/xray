@@ -91,29 +91,6 @@ def S_hydrogenic_1s(w1, w2, theta, Z, B=0, type='IA'):
 
   return S / HARTREE
 
-def S_hydrogenic_1s(w1, w2, theta, Z, B=0, type='IA'):
-  """
-  w1,w2 - incident, scattered energies in eV
-  theta - scattering angle in degrees
-  Z - effective nuclear charge
-
-  returns: S(q,w) for 1 electron in inv. eV
-  """
-  r = np.linspace(0,20,1001)
-  p = np.linspace(0,20,1001)
-  f = hydrogenic1s(r,Z)
-  u = sph_fourier(r,f, p)
-
-  w = (w1 - w2) / HARTREE
-  q = momentum_transfer(w1,w2,theta*np.pi/180) * BOHR
-
-  if type == 'IA':
-    S = impulse(p, u, q, w)
-  elif type == 'PWFFA':
-    S = pwffa(p, u, q, w, B/HARTREE)
-
-  return S / HARTREE
-
 def sthetaw(r, psi, w1, w2, theta, B=0, type='IA'):
   """
   Parameters:
