@@ -277,15 +277,22 @@ def closest_line(energy):
   except IndexError:
     return None
 
-def lines_in_range(energy_min, energy_max):
+def lines_in_range(energy_min, energy_max, main_only=False):
   """
   Return a list of emission lines in the supplied energy range
 
   Parameters:
-    energy_min: minimum energy bound
-    energy_max: maximum energy bound
+    energy_min: minimum energy bound (in eV)
+    energy_max: maximum energy bound (in eV)
+    main_only: only include primary diagram lines
   """
-  return _in_energy_range(lines(), energy_min, energy_max)
+
+  ret = _in_energy_range(lines(), energy_min, energy_max)
+
+  if main_only:
+    ret = filter(lambda l: l.trans in iupac_map, ret)
+
+  return ret
 
 def closest_edges(energy, before=0, after=0):
   return _closest_in_energy(edges(), energy, before, after)
