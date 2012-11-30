@@ -118,7 +118,7 @@ def sqw(r,psi, q, w, B=0, type='IA', l=0):
     type: 'IA' for impulse approximation or 'PWFFA' for plane-wave form-factor
     l: orbital quantum number for shell
   """
-  p = np.linspace(0,20,2001) # XXX be careful about this upper bound
+  p = np.linspace(0,40,2001) # XXX be careful about this upper bound
   u = sph_fourier(r,psi, p, l)
 
   if type == 'IA':
