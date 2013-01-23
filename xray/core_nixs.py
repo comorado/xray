@@ -146,7 +146,7 @@ def eisenberger1s(w, q, Z, B=None):
   """
 
   if B is None:
-    B = Z**2 / 2
+    B = Z**2 / 2.0
   p = np.sqrt(2*(w-B))
 
   a = 1.0 / Z
