@@ -1,0 +1,72 @@
+#!/usr/bin/env python2
+# encoding: utf-8
+"""
+Mystery Line Finder
+
+Usage:
+  {cmd} <xtal> <reflection> <E_min> <E_max> [options]
+  {cmd} -h
+
+Parameters:
+  xtal                    Crystal Material (e.g., Si)
+  reflection              Miller indices (e.g. 440 or 3,3,1)
+  E_min                   Minimum energy (eV)
+  E_max                   Maximum energy (eV)
+Options:
+  -h --help               Show this screen
+"""
+from docopt import docopt
+import sys
+
+if __name__ == "__main__":
+  args = docopt(__doc__.format(cmd=sys.argv[0]),
+                version="Mystery Line Finder v0.1)")
+
+  from xray import nistdb, bragg
+
+  xtal = args['<xtal>']
+  refl = args['<reflection>']
+
+  if len(refl) == 3: refl = [int(c) for c in refl]
+  else: refl = [int(c) for c in refl.split(',')]
+
+  E_min = float(args['<E_min>'])
+  E_max = float(args['<E_max>'])
+
+  dtheta = 2.0
+
+
+  reflections = bragg.find_alternate_reflections('Ge', refl, E_min, E_max, dtheta, 6)
+
+  lattice_spacing = bragg.crystal_info[xtal][1]
+
+  candidates = []
+  for r in reflections:
+    lines = nistdb.lines_in_range(*r[2])
+
+    alt_refl = r[1]
+    dtheta = r[0]
+    for l in lines:
+
+      theta = bragg.bragg_angle(l.energy, lattice_spacing, alt_refl)
+      apparent = bragg.bragg_energy(theta, lattice_spacing, refl)
+      is_main = "*" if l.trans in nistdb.iupac_map else " "
+      trans = nistdb.iupac_map.get(l.trans, l.trans)
+
+
+      info = dict(elt=l.elt_name, trans=trans, energy=l.energy, apparent=apparent, is_main=is_main, refl=alt_refl, dtheta=r[0])
+      candidates.append(info)
+
+  candidates.sort(key=lambda x: x['apparent'])
+
+  print("Crystal type: {xtal}\nPrimary reflection: {refl}".format(xtal=xtal, refl=refl))
+  print("="*50)
+
+  #  print("\n{refl} (Δθ = {theta:.2f})".format(refl=alt_refl, theta=dtheta))
+  print("")
+  print("   Elt Line    Energy     Apparent   Refl.      Δθ")
+  print("  " + "-"*50)
+
+  for c in candidates:
+    print("  {is_main} {elt:2s} {trans:5s} {energy:10.2f} {apparent:10.2f}   {refl:10s} {dtheta:3.1f}".format(**c))
+
