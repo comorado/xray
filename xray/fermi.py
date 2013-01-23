@@ -115,6 +115,17 @@ def rhop(p, pF=1.0, T=0, mu=None):
   else:
     return rho * f(p**2/2, T, mu)
 
+def rhop_maxwell(p, T, n):
+  """
+  Calculate momentum distribution in classical limit (T->inf or n-> 0))
+
+  p: momentum (in a.u.)
+  T: temperature (in Hartree)
+  n: density (in electrons / Bohr^3)
+  """
+  from scipy.special import gamma
+  return n / (T**1.5 * np.sqrt(2) * gamma(1.5)) * np.exp(- p**2 / 2 /T)
+
 def rhoe(energy, V=1.0, m=1.0):
   """
   DoS for a Fermi Gas
