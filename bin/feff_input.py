@@ -3,8 +3,9 @@
 FEFF Input File Modifier
 
 Usage:
-    {cmd} scale <filename> <scale> [--scf] [--fms] [--ldos] [options]
-    {cmd} rotate <filename> <qx> <qy> <qz> [options]
+    {cmd} <filename> scale <scale> [--scf] [--fms] [--ldos] [options]
+    {cmd} <filename> rotate <qx> <qy> <qz> [options]
+    {cmd} <filename> cylinder <r> [options]
     {cmd} (-h | --help)
 
 Generic Options:
@@ -76,3 +77,11 @@ if __name__ == "__main__":
     f.rotate_atoms_to([qx, qy, qz])
     f.save(outfile)
 
+  elif args['cylinder']:
+    infile = args['<filename>']
+    outfile = args['--output'] or sys.stdout
+    r = float(args['<r>'])
+
+    f = feff.InputFile(infile)
+    f.truncate_cylinder(r)
+    f.save(outfile)

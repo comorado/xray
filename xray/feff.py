@@ -303,6 +303,13 @@ class InputFile(object):
     for a in self.atoms:
       a.x,a.y,a.z = np.dot(rotation_matrix, np.array([a.x,a.y,a.z]))
 
+  def truncate_cylinder(self, radius):
+    # filter out atoms further from z axis than radius
+    self.atoms = [a for a in self.atoms if a.x**2 + a.y**2 <= radius**2]
+    # renumber atom list
+    for i,a in enumerate(self.atoms):
+      a.n = i
+
   def save(self, filename):
     with to_filehandle(filename, "w") as (f, fname):
       for line in self.pre_atoms:
