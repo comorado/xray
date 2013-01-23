@@ -602,7 +602,7 @@ def __div__(curve, curve2, interpolate='linear', **kwargs):
 @processor
 def fsum(curve, q, N):
   from .const import HBARC, MC2
-  norm = N * (HBARC**2) * q**2 / MC2
+  norm = N * (HBARC**2) * q**2 / 2 / MC2
   ret = curve.copy()
   ret.y *=  norm / np.trapz(ret.x*ret.y, ret.x)
   return ret
