@@ -101,6 +101,9 @@ class LDOS(object):
     self.dos = data[1:]
     self.total_dos = self.dos.sum(0)
 
+  def __call__(self, E, l=None):
+    y = self.total_dos if l is None else self.dos[l]
+    return np.interp(E, self.energy, y, left=0, right=0)
 
   def mu_of_T(self, T, n0=None):
     """
@@ -159,13 +162,13 @@ def plot_ldos(ldos, T, mu):
   pt.show()
 
 class DensityMap(object):
-  def __init__(self, filename):
+  def __init__(self, filename, float_precision='f'):
     from .lib import fortranfile
     f = fortranfile.FortranFile(filename)
     self.energy = f.readReals('d')
     self.x = f.readReals('d')
     self.y = f.readReals('d')
-    self.density = f.readReals('f').reshape(len(self.x), len(self.y), len(self.energy))
+    self.density = f.readReals(float_precision).reshape(len(self.x), len(self.y), len(self.energy))
 
   def occupied(self, E_fermi, T=0):
     """
