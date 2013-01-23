@@ -400,3 +400,36 @@ def to_filehandle(fname_or_fh, flag="r"):
   finally:
     if own_fh:
       fh.close()
+
+def load_pot(fname):
+  info = {}
+  with open(fname) as f:
+
+    # read in first row which contains dimensions
+    vars = f.readline().strip().split()
+    vals = f.readline().split()
+    for k,v in zip(vars,vals):
+      info[k.strip(',')] = int(v)
+
+    info['title'] = []
+    for i in range(info['ntitle']):
+      info['title'].append(f.readline().strip())
+
+    for i in range(13):
+      key, val = f.readline().strip().split()
+      info[key] = float(val)
+
+    # read in everything else
+    key = None
+    for line in f:
+      line = line.strip()
+      if not (line[0].isdigit() or line[0] == '-'):
+        if key is not None:
+          info[key] = np.array(info[key])
+        key = line
+        info[key] = []
+      else:
+        info[key] += [float(s) for s in line.split()]
+    info[key] = np.array(info[key])
+
+    return info
