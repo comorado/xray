@@ -5,6 +5,8 @@ Compton Profile Convertor
 Usage:
   {cmd} jpq2sqw <filename> <theta> <energy> [options]
   {cmd} sqw2jpq <filename> <theta> <energy> [options]
+  {cmd} jpq2rhop <filename> [options]
+  {cmd} xrts2sqw <filename> <energy> [options]
   {cmd} -h
 
 Options:
@@ -15,12 +17,15 @@ Options:
   -n --num-electrons=N    Number of electrons to normalize J(pq) to.
   -a --atomic             Input file is atomic units
   -o --output=<filename>  Filename to save output to [default: stdout]
+  -S --symmetrize         Symmetrize CP
+  -c --column=<column>    Column in file containing data (only in xrts2sqw)
   -d --debug              Show debugging output
 """
 from docopt import docopt
 import sys, os
 import numpy as np
 from schema import Schema, Or, And, Use
+from xray import compton, analysis, const
 
 is_positive = lambda x: x > 0
 open_output = lambda o: sys.stdout if o == 'stdout' else open(o, 'w')
@@ -46,21 +51,25 @@ def parse_omega(omega):
 
 opts_schema = Schema({
   '<filename>': Schema(os.path.exists, error='Input file does not exist.'),
-  '<theta>': And(Use(float), lambda x: 0 <= x <= 180,
-                 error='Invalid theta value'),
-  '<energy>': And(Use(float), is_positive,
-                  error='Invalid energy'),
+  '<theta>': Or(None, And(Use(float), lambda x: 0 <= x <= 180,
+                 error='Invalid theta value')),
+  '<energy>': Or(None, And(Use(float), is_positive,
+                  error='Invalid energy')),
   '--omega': Use(parse_omega, error='Invalid omega'),
   '--num-electrons': Or(None,
                         And(Use(float), is_positive)
                        ), 
   '--scattered': bool,
   '--atomic': bool,
+  '--symmetrize': bool,
+  '--column': Or(None, And(Use(int))),
   '--output': Use(open_output),
   '--debug': bool,
   '--help': bool,
   'jpq2sqw': bool,
   'sqw2jpq': bool,
+  'jpq2rhop': bool,
+  'xrts2sqw': bool,
 })
 
 
@@ -71,9 +80,6 @@ def debug(msg):
     sys.stderr.write("\n")
 
 def jpq2sqw(args):
-    import numpy as np
-    from xray import compton
-
     filename = args['<filename>']
     theta = args['<theta>']*np.pi/180
     energy = args['<energy>']
@@ -103,7 +109,6 @@ def jpq2sqw(args):
     sqw.save(out)
 
 def sqw2jpq(args):
-  from xray import compton, analysis, const
 
   filename = args['<filename>']
   theta = args['<theta>']
@@ -141,6 +146,53 @@ def sqw2jpq(args):
 
   cp.save(out)
 
+
+def jpq2rhop(args):
+    filename = args['<filename>']
+    num_electrons = args['--num-electrons']
+    atomic_units = args['--atomic']
+    symmetrize = args['--symmetrize']
+    out = args['--output']
+
+    cp = compton.ComptonProfile.from_file(filename, num_electrons=num_electrons, atomic_units=atomic_units)
+
+    if symmetrize:
+      cp = cp.symmetrize()
+
+    rhop = cp.to_rhop()
+
+    header = ("# rho(p) generated from J(p_q)\n"
+              "# Source: {filename:s}\n"
+              "#\n# p       rho(p)\n").format(
+                  filename=os.path.abspath(filename),
+                  )
+    out.write(header)
+    rhop.save(out)
+
+def xrts2sqw(args):
+    filename = args['<filename>']
+    w1 = args['<energy>']
+    column = args['--column'] or 1
+    out = args['--output']
+
+
+    data = analysis.Curve.from_file(filename, y=column)
+
+    # switch to energy tranfer
+    w2 = data.x
+    w = (w1 - w2)[::-1]
+    S = (data.y * (w1/w2)**2)[::-1] 
+
+    sqw = analysis.Curve(w, S)
+
+    header = ("# S(q,w) generated from XRTS output\n"
+              "# Source: {filename:s}\n"
+              "#\n# w       S\n").format(
+                  filename=os.path.abspath(filename),
+                  )
+    out.write(header)
+    sqw.save(out)
+
 if __name__ == "__main__":
   usage = __doc__.format(cmd=os.path.basename(sys.argv[0]))
   args = docopt(usage, version="Compton 0.1)")
@@ -156,7 +208,7 @@ if __name__ == "__main__":
     sys.exit(e.code)
     #sys.stderr.write(str(e) + "\n")
 
-  cmds = ['jpq2sqw', 'sqw2jpq']
+  cmds = ['jpq2sqw', 'sqw2jpq', 'jpq2rhop', 'xrts2sqw']
 
   for cmd in cmds:
     if args[cmd]:
