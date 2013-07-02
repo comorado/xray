@@ -2,7 +2,7 @@ import numpy as np
 from . import const
 from .analysis import Curve
 
-def isotropic_profile(rho_p_func, pq, *args):
+def isotropic_profile(rho_p_func, pq, args):
   """
   Calculates compton profile for an isotropic momentum density
   """
@@ -17,19 +17,22 @@ def isotropic_profile(rho_p_func, pq, *args):
   #
   #data = np.array([quad(integrand, pqi, Inf, args) for pqi in pq])
 
-  J0 = quad(integrand, 0, Inf, args)[0]
-  dJ = np.array([quad(integrand, 0, pqi, args)[0] for pqi in pq])
+  J0 = quad(integrand, 0, Inf, args, epsabs=1e-3, epsrel=1e-3)[0]
+  dJ = np.array([quad(integrand, 0, pqi, args, epsabs=1e-3, epsrel=1e-3)[0] for pqi in pq])
 
   J = J0 - dJ
   return J
 
-def fermi_profile(pq, N, V):
-  from .fermi import fermi_momentum
+def fermi_profile(pq, N, V, T=0, mu=None):
+  from .fermi import fermi_momentum, mu_T, rhop
 
-  pf = fermi_momentum(N/float(V))
-  return V / (2 * np.pi)**2 * (pf**2 - pq**2) * (pf >= np.abs(pq))
-
-
+  if T < 1e-5:
+    pf = fermi_momentum(N/float(V))
+    return V / (2 * np.pi)**2 * (pf**2 - pq**2) * (pf >= np.abs(pq))
+  else:
+    if mu is None:
+      mu = mu_T(N,V,T)
+    return isotropic_profile(rhop, pq, (N,V,T,mu))
 
 def compton_shift(E, theta):
     """
@@ -188,4 +191,20 @@ class ComptonProfile(Curve):
       c = c.normalize_integral(num_electrons)
 
     return c
+
+  def to_rhop(self, use_neg=False):
+      der = self.differentiate()
+
+      if not use_neg:
+        i = der.x > 0
+        der.x = der.x[i]
+        der.y = (der.y[i] / (-2.0 * np.pi * der.x))
+      else:
+        i = der.x < 0
+        der.x = -der.x[i]
+        der.y = (der.y[i] / (2.0 * np.pi * der.x))
+        der.x = der.x[::-1]
+        der.y = der.y[::-1]
+
+      return der
 
