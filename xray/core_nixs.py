@@ -1,5 +1,8 @@
 import numpy as np
 from .const import HBARC, BOHR, HARTREE
+from .special import sph_jn
+from .utils import trapezoid
+from scipy.misc import factorial
 
 def sph_fourier(r,f,p,l=0):
   """
@@ -7,7 +10,6 @@ def sph_fourier(r,f,p,l=0):
 
   TODO: modify this to determine p based on extent of f(r)
   """
-  from utils import sph_jn
   jn = sph_jn(l,p[:,np.newaxis]*r[np.newaxis,:])
   return np.sqrt(2/np.pi)*np.trapz(r*f[np.newaxis,:]*jn, r)
 
@@ -36,8 +38,9 @@ def pwffa(p, u, q, w, B):
   pmax = np.sqrt(2*(w-B))+q
   pmin[w<B] = 0
   pmax[w<B] = 0
-  indices = ((p1<=p)&(p<=p2) for p1,p2 in zip(pmin,pmax))
-  S = np.array([np.trapz(p[i]*rhop[i], p[i]) for i in indices])
+  #indices = ((p1<=p)&(p<=p2) for p1,p2 in zip(pmin,pmax))
+  #S = np.array([np.trapz(p[i]*rhop[i], p[i]) for i in indices])
+  S = np.array([ trapezoid(p, p*rhop, p1,p2) for p1,p2 in zip(pmin,pmax)])
 
   return (2*np.pi/q) * S
 
@@ -51,14 +54,27 @@ def impulse(p, u, q, w):
 
   rhop = momentum_density(u)
   pmin = abs(w/q-q/2)
-  indices = ((p1<=p) for p1 in pmin)
-  S = np.array([np.trapz(p[i]*rhop[i], p[i]) for i in indices])
+  #indices = ((p1<=p) for p1 in pmin)
+  #S = np.array([np.trapz(p[i]*rhop[i], p[i]) for i in indices])
+  S = np.array([ trapezoid(p, p*rhop, pm) for pm in pmin])
 
   return (2*np.pi/q) * S
 
 def hydrogenic1s(r, Z):
   """ Impulse approximation expression for hydrogenic 1s shell """
   return 2 * r * Z**1.5 * np.exp(-Z*r)
+
+def hydrogenic_radial(r, Z, n=1,l=0):
+  """Radial wavefunction (times r) for a hydrogenic system"""
+  if n == 1 and l == 0:
+    return 2 * r * Z**1.5 * np.exp(-Z*r)
+  elif n == 2 and l == 0:
+    return (np.sqrt(2)/4) * r * Z**1.5 * (2 - r*Z) * np.exp(-Z*r/2)
+  elif n == 2 and l == 1:
+    return (np.sqrt(6)/12) * r * Z**1.5 * (r*Z) * np.exp(-Z*r/2)
+  else:
+    raise Exception("Unimplemented")
+
 
 def momentum_transfer(E1, E2, theta):
   """
@@ -161,3 +177,94 @@ def eisenberger1s(w, q, Z, B=None):
        ) 
   S[np.isnan(S)] = 0
   return S
+
+def hydrogenic_bound_bound(n,q,Z):
+  """
+  Eisenberger & Platzman eq. (32)
+  Parameters:
+    n: principal quantum number
+    q: momentum transfer in inv. Bohr
+    Z: effective nuclear charge
+  """
+  a = 1.0 / Z
+  qa = q*a
+  n = float(n)
+    
+  A = (2**8/3.) * qa**2 / n**3 * (3 * qa**2 + (n**2-1)/n**2)
+  B = ((n-1)**2/n**2 + qa**2)**(n-3)
+  C = (((n+1)/n)**2 + qa**2)**(n+3)
+  S = A * B/C
+
+  return S
+
+def schumacher_phi(n,l,y):
+    if n == 1:
+        if l == 0:
+            return 1.0 / (3.0 * y**3) # was this a typo in Schumacher (which has y^2)?
+    elif n == 2:
+        if l == 0:
+            return 4.0 * (1.0 / (3.0 * y**3) -  1.0 / y**4 + 4.0 / (5.0 * y**5))
+        elif l == 1:
+            return 1.0 / (4 * y**4) - 1.0 / (5 * y**5)
+    raise NotImplementedError
+
+def schumacher_IA_jpq(pq,n,l,Z=1):
+    Za = Z
+    return 2**(4*l+3)/np.pi * factorial(n-l-1)/factorial(n+l) * n**2 * factorial(l)**2/Za * schumacher_phi(n,l,1+pq**2*n**2/Za**2)
+
+def schumacher_IA_sqw(q,w,n,l,Z=1):
+    pq = w/q - q/2
+    return schumacher_IA_jpq(pq, n, l, Z) / q
+
+
+
+def xrts_IA(w1, w2, theta, n=1, l=0, Z=3.81, B=112,  scale_rk=True, scale_sinc=True):
+  """
+  Reproduce truncated IA calculation from XRTS code.
+
+  w1 in eV
+  w2 in eV
+  theta in degrees
+
+  If `scale_rk` is True, then a factor 1-|f|^2 is included
+  If `scale_sinc` is True than factor of (1+q^2/2 / w1)^-3 is included
+  """
+
+  w = w1 - w2
+  q = momentum_transfer(w1, w2, theta*np.pi/180)*BOHR
+
+  S = schumacher_IA_sqw(q,w/HARTREE,n,l,Z)/HARTREE
+  S[w<B] = 0
+  if scale_rk:
+    fi2 = hydrogenic_bound_bound(n,q,Z)
+    S *= 1 - fi2 # verified
+  if scale_sinc:
+    sinc = (1 + (q**2/2 * HARTREE / w1))**-3
+    S *= sinc # verified
+    S *= (w2/w1)**2 # verified
+
+  return S
+
+def xrts_PWFFA(w1, w2, theta, n=1, l=0, Z=3.81, B=112,  scale_rk=True, scale_sinc=True):
+  if n != 1 or l != 0:
+    raise Exception("Unimplemented. Only 1s supported.")
+
+  S = S_hydrogenic_1s(w1, w2, theta, Z, B, type='PWFFA')
+  q = momentum_transfer(w1, w2, theta*np.pi/180)*BOHR
+  if scale_rk:
+    fi2 = hydrogenic_bound_bound(n,q,Z)
+    S *= 1 - fi2
+  if scale_sinc:
+    sinc = (1 + (q**2/2 * HARTREE / w1))**-3
+    S *= sinc
+    S *= (w2/w1)**2
+
+  return S
+
+def xrts_scale_factor(w1, q, Z, n=1):
+  fi2 = hydrogenic_bound_bound(n,q,Z)
+  rk = 1 - fi2 # r_k factor
+
+  recoil = (1 + (q**2/2 * HARTREE / w1))**-3 # Breit-Dirac recoil
+
+  return rk * recoil
