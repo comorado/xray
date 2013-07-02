@@ -1,6 +1,8 @@
 import numpy as np
 from itertools import cycle
 from scipy.interpolate import splrep, splint
+from numpy import fft
+from .lib import fortranfile
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -127,6 +129,32 @@ class LDOS(object):
 
     return mu
 
+  def _find_occupation(self, Emin, N):
+    """
+    Finds Emax such that the integral of total_dos from Emin to Emax equals N
+    """
+    from .utils import trapezoid
+    from scipy.optimize import fminbound
+
+
+    constraint = lambda Emax: (trapezoid(self.energy,
+                                               self.total_dos,
+                                               Emin, Emax
+                                              ) - N)**2
+
+    Emax, dn, warnflag, funccalls = fminbound(constraint,
+                                              Emin,
+                                              self.energy[-1],
+                                              full_output=True,
+                                              disp=0)
+
+
+    #print dn, warnflag, funccalls
+    if warnflag != 0 or dn > 1e-5:
+      return None
+
+    return Emax
+
   def electron_counts(self, T, mu=None):
     """
     Calculate number of electrons for each angular momentum
@@ -161,9 +189,45 @@ def plot_ldos(ldos, T, mu):
     
   pt.show()
 
+class DensityBin(object):
+  def __init__(self, filename):
+    f = fortranfile.FortranFile(filename)
+    self.ndims = f.readInts()[0]
+    self.origin = f.readReals('d')
+
+    gridspec = [(f.readReals('d'), f.readInts()[0]) for i in range(self.ndims)]
+    self.axes = [axis for axis,n in gridspec]
+    self.npts = [n for axis,n in gridspec]
+    self.steps = [axis/(n-1) for axis,n in gridspec]
+
+
+    self.rho = f.readReals('d').reshape(self.npts[::-1])
+
+
+  def point_at_index(self, idx):
+    assert(idx.ndims == self.ndims)
+    self.origin + sum([i*s for i,s in zip(idx,self.steps)], 0)
+
+  def idx_iter(self):
+    idx_iter(self.npts)
+
+  def is_orthog(self):
+    comparisons = [(0,1), (0,2), (1,2)]
+    return all([np.dot(self.axes[i], self.axes[j]) < 1e-10
+                for i,j in comparisons])
+
+  def orthog_coords(self):
+    # XXX this currently assumes that axes are ordered x-y-z...
+    assert(self.is_orthog())
+    return [x0 + np.linalg.norm(ax) / (npts-1) * np.arange(npts)
+            for x0,ax,npts in zip(self.origin,self.axes, self.npts)]
+
+def idx_iter(shape):
+  from itertools import product
+  return product(*[xrange(n) for n in shape])
+
 class DensityMap(object):
   def __init__(self, filename, float_precision='f'):
-    from .lib import fortranfile
     f = fortranfile.FortranFile(filename)
     self.energy = f.readReals('d')
     self.x = f.readReals('d')
@@ -177,8 +241,19 @@ class DensityMap(object):
     For T != 0, `E_fermi` should be the chemical potential!
     """
     from .fermi import f
+    from .utils import trapezoid
 
-    return np.trapz(self.density[:,:,:] * f(self.energy, T, E_fermi), self.energy)
+    if T > 0:
+      return np.trapz(self.density[:,:,:] * f(self.energy, T, E_fermi), self.energy)
+    else:
+      return trapezoid(self.energy, self.density, x1=E_fermi, axis=2)
+
+  def occupied2(self, Emin, Emax):
+    """
+    Integrate over energies in [Emin,Emax] to obtain density
+    """
+    pass
+
 
 def load_atomic_wf(filename):
   """
@@ -436,3 +511,79 @@ def load_pot(fname):
     info[key] = np.array(info[key])
 
     return info
+
+def luecks_grid(x0=-8.8, dx=0.05, n=251):
+    return np.exp(x0 + dx * np.arange(n))
+
+class PotDat(object):
+  def __init__(self, fname, nr=251):
+    pot = load_pot(fname)
+
+    # convert from dict to attributes
+    for k in pot:
+      self.__setattr__(k, pot[k])
+
+    self.lx = 30
+
+    # fix up dimensions
+    self.dgc = self.dgc.reshape(self.nph+1, -1, nr)
+    self.dpc = self.dpc.reshape(self.nph+1, -1, nr)
+    self.adgc = self.adgc.reshape(self.nph+1, -1, 10)
+    self.adpc = self.adpc.reshape(self.nph+1, -1, 10)
+    self.edens = self.edens.reshape(self.nph+1, nr)
+    self.vclap = self.vclap.reshape(self.nph+1, nr)
+    self.vtot = self.vtot.reshape(self.nph+1, nr)
+    self.edenvl = self.edenvl.reshape(self.nph+1, nr)
+    self.vvalgs = self.vvalgs.reshape(self.nph+1, nr)
+    self.dmag = self.dmag.reshape(self.nph+1, nr)
+    self.xnval = self.xnval.reshape(self.nph+1, -1)
+    self.iorb = self.iorb.reshape(self.nph+1, 8) # XXX check this
+    self.xnmues = self.xnmues.reshape(self.nph+1, -1)
+
+    self.lx = self.xnmues.shape[1]
+    self.r = luecks_grid()
+
+  def density(self, ipot):
+    """
+    Calculate *atomic* density for unique potential ipot
+
+    Returns:
+      radial density for each shell
+    """
+
+    if ipot > self.nph:
+      raise ValueError("ipot must be less than self.nph")
+
+    return [d/(4*np.pi*self.r**2) for d in self.dgc[ipot]**2 + self.dpc[ipot]**2 if not (d == 0.0).all()]
+
+  def atomic_formfactors(self, ipot):
+    x = np.linspace(0,self.r[-1], self.r[-1]*101)
+    ys = (np.interp(x, self.r, d) for d in self.density(ipot))
+    tmp = [sph_fft(x, y) for y in ys]
+
+    q = tmp[0][0]
+    fs = [t[1] for t in tmp]
+    return  q, fs
+
+    """
+    q = fft.fftshift(fft.fftfreq(len(x), dx)) * 2 * np.pi
+    fs = [-np.imag(fft.fftshift(fft.fft(np.interp(x, self.r, d/self.r)*dx)))/
+          for d in self.density(ipot)]
+    return q, fs
+    """
+  
+
+def sph_fft(x, y):
+  dx = x[1] - x[0]
+  q = fft.fftshift(fft.fftfreq(len(x), dx)) * 2 * np.pi
+  f = -(4*np.pi)*fft.fftshift(np.imag(fft.fft(y*dx * x)))
+  f /= q
+  f[q == 0] = np.trapz(4*np.pi*y*x**2, x)
+  return q, f
+
+def load_binmatrix(fname):
+  f = fortranfile.FortranFile(fname)
+  dims = f.readInts()
+  shape = list(dims)[::-1] + [2]
+  data = f.readReals('d').reshape(shape)
+  return data[...,0] + 1j * data[...,1]
