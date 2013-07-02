@@ -41,6 +41,10 @@ elt_info = {
       'V': 23.241,
       'kF': 1.366,
     },
+    'Al': {
+      'N': 3,
+      'V': 16.6013811
+    }
 }
 
 CONVERSION = {
@@ -96,24 +100,35 @@ def fermi_energy(density, m=1.0):
   """
   return fermi_momentum(density)**2 / (2 * m)
 
-def rhop(p, pF=1.0, T=0, mu=None):
+def rhop(p, N, V, T=0, mu=None):
   """
   Occupied momentum density for a Fermi gas
 
   Parameters:
     p: momenta to evaluate density at
-    pF: fermi momentum
+    N: number of electrons in volume
+    V: Volume
+    T: temperature
+    mu: chemical potential (for T>0)
+
+  If mu is None, then it is calculated using mu_T. Since this is somewhat slow,
+  you should pre-calculate mu and pass it in if calling rhop multiplie times
+  with the same parameters.
   """
 
-  rho = SPIN_DEGENERACY / (2*pi)**3
+  rho = V * SPIN_DEGENERACY / (2*pi)**3
 
-  if mu is None:
-    mu = pF**2/2
-
+  
   if T < T_MIN:
+    pF = fermi_momentum(N/V)
     return rho * (pF >= p)
   else:
-    return rho * f(p**2/2, T, mu)
+    if mu is None:
+      mu = mu_T(N,V, T)
+      print mu
+
+    #return rho * f(p**2/2, T, mu)
+    return rho * 1.0/(np.exp((p**2/2-mu)/T)+1)
 
 def rhop_maxwell(p, T, n):
   """
@@ -175,7 +190,7 @@ def rhole(energy, l, V):
   k = np.sqrt(2*energy)
   return rholk(k, l, V) * k
 
-def mu_T(N, V, T, disp=False):
+def mu_T(N, V, T, **fminkwargs):
   """
   Chemical potental at temperature T
 
@@ -183,7 +198,7 @@ def mu_T(N, V, T, disp=False):
     N: number of electrons valence electrons per atom
     V: atomic volume (bohr^3)
     T: temperature (in energy units)
-    args: any additional arguments to pass on to rhoe_func
+    fminargs: any additional arguments to pass on to fmin 
   """
 
   def occupied(energy, mu):
@@ -194,7 +209,10 @@ def mu_T(N, V, T, disp=False):
 
   from scipy.optimize import fmin
 
-  ret = fmin(lambda mu: np.abs(N-nmu(mu)), fermi_energy(N/V)+0.2, full_output=True, disp=disp)
+  if "disp" not in fminkwargs:
+    fminkwargs["disp"] = False
+
+  ret = fmin(lambda mu: np.abs(N-nmu(mu)), fermi_energy(N/V)+0.2, full_output=True, **fminkwargs)
 
   mu = ret[0][0]
 
@@ -204,15 +222,20 @@ def mu_T(N, V, T, disp=False):
   return mu
 
 def mu_fit(N,V,T):
-  """ From Ichimaru Statistical Plasma Physics Volume II """
+  """ From Ichimaru Statistical Plasma Physics Volume II eq B.5"""
   EF = fermi_energy(N/V)
-  #if T == 0: return EF
+  if T == 0:
+    return EF
 
   A = 0.25954
-  B = 0.072
+  B = 0.0072
   b = 0.858
   x = T / EF
-  return T * (-1.5*np.log(x) + np.log(4/3/np.sqrt(pi)) + A*x**(-b+1) + (B * x**(-(b+1)/2)) / (1 + A * x**-b))
+  mu = T * (-1.5*np.log(x) + np.log(4/3.0/np.sqrt(pi)) + (A*x**(-b-1) + B * x**(-(b+1)/2.0)) / (1 + A * x**-b))
+
+  return mu
+mu_fitu = np.frompyfunc(mu_fit,3,1)
+
 
 def mu_fit_zimmerman(n, T):
   """
