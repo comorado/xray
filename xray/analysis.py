@@ -20,6 +20,29 @@ class Curve(object):
     except KeyError:
       raise AttributeError, "'{cls}' object has no attribute '{name}'".format(cls=self.__class__, name=name), sys.exc_info()[2]
 
+  def __call__(self, x, interpolation='linear'):
+    """
+    Interpolate curve onto point x.
+
+    interpolation can be either 'linear' or 'spline'.
+    """
+
+    if interpolation == 'linear':
+      return self.interpolate(x)
+    else:
+      return self.interpolate_spline(x)
+
+  def __getitem__(self, ind):
+    return self.__class__(self.x[ind],
+                          self.y[ind],
+                          None if self.s is None else self.s[ind],
+                          **self.meta
+                         )
+
+  def __iter__(self):
+    from itertools import izip
+    return ( (x,y) for x,y in izip(self.x, self.y) )
+
   @classmethod
   def from_file(cls, filename, x=0, y=1, s=None, **kwargs):
     """
@@ -229,6 +252,21 @@ def broaden_fwhm(curve, fwhm):
   sigma = fwhm / (2 * np.sqrt(2*np.log(2)))
   return curve.broaden(sigma)
 
+@processor
+def deconvolve_gaussian(curve, sigma, sigma_filter=None):
+  import deconv
+  y = deconv.deconvolve_gaussian(curve.x, curve.y, sigma, sigma_filter)
+  return curve.__class__(curve.x, y)
+
+@processor
+def deconvolve_gaussian_fwhm(curve, fwhm, fwhm_filter=None):
+  sigma = fwhm / (2 * np.sqrt(2*np.log(2)))
+
+  sigma_filter = None
+  if fwhm_filter:
+    sigma_filter = fwhm_filter / (2 * np.sqrt(2*np.log(2)))
+
+  return deconvolve_gaussian(curve, sigma, sigma_filter)
 
 @processor
 def normalize_integral(curve, norm=1.0, xmin=None, xmax=None):
@@ -592,6 +630,10 @@ def __sub__(curve, curve2, interpolate='linear', **kwargs):
   return combine(curve, curve2, operator.sub, interpolate, **kwargs)
 
 @processor
+def __pow__(curve, curve2, interpolate='linear', **kwargs):
+  return combine(curve, curve2, operator.pow, interpolate, **kwargs)
+
+@processor
 def __mul__(curve, curve2, interpolate='linear', **kwargs):
   return combine(curve, curve2, operator.mul, interpolate, **kwargs)
 
@@ -606,6 +648,26 @@ def fsum(curve, q, N):
   ret = curve.copy()
   ret.y *=  norm / np.trapz(ret.x*ret.y, ret.x)
   return ret
+
+
+@processor
+def differentiate(curve, rule='midpoint'):
+    if rule == 'midpoint':
+        x = curve.x[1:-1]
+        dx = curve.x[2:] - curve.x[:-2]
+        dy = curve.y[2:] - curve.y[:-2]
+
+        s = None
+        if curve.s is not None:
+          # propagate uncertainty
+          s = np.sqrt(curve.s[2:]**2 + curve.s[:-2]**2)/dx
+        return curve.__class__(x, dy/dx, s)
+    else:
+        raise ValueError("Unknown differentiation rule")
+
+@processor
+def symmetrize(curve):
+    return (curve + curve.__class__(-curve.x[::-1], curve.y[::-1]))/2.0
 
 
 ##################
