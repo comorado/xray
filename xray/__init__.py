@@ -5,7 +5,8 @@ import bragg, \
        feff, \
        fermi, \
        lattice, \
-       nistdb
+       nistdb, \
+       utils
 
 __all__ = [
   'bragg',
@@ -16,5 +17,6 @@ __all__ = [
   'feff',
   'lattice',
   'nistdb',
+  'utils',
   ]
 
