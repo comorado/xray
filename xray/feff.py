@@ -2,7 +2,8 @@ import numpy as np
 from itertools import cycle
 from scipy.interpolate import splrep, splint
 from numpy import fft
-from .lib import fortranfile
+#from .lib import fortranfile
+import fortranfile
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -18,24 +19,29 @@ def fermi(E,T,mu):
     T: temperature
     mu: chemical potential
   """
-  if T == 0:
+  if T == 0.0:
     return (E <= mu) * 1.0
 
-  return 1.0/(np.exp((E-mu)/T) + 1)
+  return 1.0/(np.exp((E-mu)/T) + 1.0)
 
-def N(mu, E,T,g):
+def N(mu, E, T, g, n=None):
   """
-  Find number of electrons by integrating g(E) * f(E,T,mu) over all E
+  Find number of electrons by integrating g(E) * f(E,T,mu) * E**n over all E
 
   Parameters:
     mu: chemical potential
     E: energy grid
     T: temperature
     g: DOS
+    n: momentum
   """
-
-  tck = splrep(E, g*fermi(E,T,mu))
-  return splint(E[0], E[-1], tck)
+  if n is None:
+   tck = splrep(E, g*fermi(E,T,mu))
+   return splint(E[0], E[-1], tck)
+  else:
+   tck = splrep(E, g*fermi(E,T,mu)*E**n)
+   return splint(E[0], E[-1], tck)
+  
 
   #return np.trapz( g * fermi(E,T,mu), E )
 
@@ -155,9 +161,10 @@ class LDOS(object):
 
     return Emax
 
-  def electron_counts(self, T, mu=None):
+  def electron_counts(self, T, mu=None, n=None):
     """
     Calculate number of electrons for each angular momentum
+    n : momentum to calculate e.g. E**n*fermi(T)*g(E)
     """
     if mu is None:
       mu = self.mu_of_T(T)
@@ -166,7 +173,14 @@ class LDOS(object):
     #E = np.linspace(self.energy[0], self.energy[-1], 1001)
     #dos = [np.interp(E, self.energy, d) for d in self.dos]
 
-    return [N(mu, self.energy, T, d) for d in self.dos]
+    #print "Print T = ",T
+    #print "Print mu = ",mu
+
+    if n is None:
+      return [N(mu, self.energy, T, d) for d in self.dos]
+    else:
+      return [N(mu, self.energy, T, d, n) for d in self.dos]
+
 
 def plot_ldos(ldos, T, mu):
   from matplotlib import pyplot as pt
