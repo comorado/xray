@@ -4,6 +4,8 @@ from scipy.interpolate import splrep, splint
 from numpy import fft
 #from .lib import fortranfile
 import fortranfile
+from operator import itemgetter, attrgetter
+from . import const
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -315,6 +317,102 @@ def rotation_matrix(axis, theta):
 
   return R
 
+class Lattice(object):
+  def __init__(self, a, b, c, alpha=0, beta=0, gamma=0, x=1, y=1, z=1, n=10):
+    self.a = a
+    self.b = b
+    self.c = c
+    self.x = x
+    self.y = y
+    self.z = z
+    self.alpha = alpha*np.pi/180.0
+    self.beta = beta*np.pi/180.0
+    self.gamma = gamma*np.pi/180.0
+    self.n = n;
+
+  def partial_coordinates_transform_matrix(self):
+    R = np.zeros((3,3))
+    sgamma = np.sin(self.gamma)
+    cgamma = np.cos(self.gamma)
+    sbeta  =  np.sin(self.beta)
+    cbeta  =  np.cos(self.beta)
+    salpha =  np.sin(self.alpha)
+    calpha =  np.cos(self.alpha)
+
+    V = np.abs(1-calpha**2-cbeta**2-cgamma**2+2*b*c*calpha*cbeta*cgamma)**(0.5)
+ 
+    R[0,0] = self.a
+    R[0,1] = self.b * cgamma
+    R[0,2] = self.c * cbeta
+    R[1,0] = 0.0
+    R[1,1] = self.b * sgamma
+    R[1,2] = self.c * (calha-cbeta*cgamma)/sgamma
+    R[2,0] = 0.0
+    R[2,1] = 0.0
+    R[2,2] = V/(a*b*sgamma)
+    return R
+
+  def lattice(self,structure='hcp'): 
+    self.atoms=[]
+    sgamma = np.sin(self.gamma)
+    cgamma = np.cos(self.gamma)
+    sbeta  =  np.sin(self.beta)
+    cbeta  =  np.cos(self.beta)
+    salpha =  np.sin(self.alpha)
+    calpha =  np.cos(self.alpha)
+    tanphic = (calpha/cbeta-cgamma)/sgamma
+    costhetac = (1.0-(cbeta**2)*(tanphic**2 + 1.0))**(0.5)
+    # i,j,k ai=a*i, bj=b*j, ck=c*k
+    for i in range(-self.n,self.n+1):
+     for j in range(-self.n,self.n+1):
+      for k in range(-self.n,self.n+1):
+       if np.abs(i)+ np.abs(j)+ np.abs(k) <= 10:
+        ai,bj,ck=self.a*i,self.b*j,self.c*k
+        xl,yl,zl = np.dot(rotation_matrix, np.array([ai,bj,ck]))
+        #xl =  self.a * i + self.b * j * cgamma + self.c * k * cbeta
+        #xl += self.x*(self.a + self.b * cgamma + self.c * cbeta)
+        #yl =  ((self.c*k*calpha + self.b*j)*np.cos(np.pi/2.0-self.gamma))
+        #yl += self.y*((self.c*calpha + self.b)*np.cos(np.pi/2.0-self.gamma))
+        #zl = self.c*k*costhetac
+        #zl += self.z*self.c*costhetac
+        self.atoms.append(Atom(
+      	  x = xl,
+      	  y = yl,
+          z = zl,
+      	  pot = 1,
+      	  tag = "be",
+      	  r = (xl**2+yl**2+zl**2)**(0.5),
+      	  n = np.abs(i) + np.abs(j) + np.abs(k)))
+        #if structure=='hcp':  
+        #self.atoms.append(Atom(
+        #  x = xl + (self.a + self.b*cgamma)/3.0 + self.c*cbeta/2.0,
+        #  y = yl + (self.b/3.0 + self.c*calpha/2.0)*np.cos(np.pi/2.0-self.gamma),
+        #  z = zl + self.c*costhetac/2.0,
+        #  pot = 1,
+        #  tag = "be",
+        #  r =((xl + (self.a + self.b*cgamma)/3.0 + self.c*cbeta/2.0)**2 +
+        #    (yl + (self.b/3.0 + self.c*calpha/2.0)*np.cos(np.pi/2.0-self.gamma))**2 +
+        #    (zl + self.c*costhetac/2.0)**2)**(0.5),
+        #  n = np.abs(i) + np.abs(j) + np.abs(k)))
+
+    self.atoms.sort(key=attrgetter('r'))
+    f = open('res.xyz', 'w')
+    g = open('res.inp', 'w')
+    for a in self.atoms:
+      g.write(str(a)+"\n")
+      f.write(a.xyz()+"\n")
+
+  def volume(self,V=0):
+    sgamma = np.sin(self.gamma)
+    cgamma = np.cos(self.gamma)
+    sbeta  =  np.sin(self.beta)
+    cbeta  =  np.cos(self.beta)
+    salpha =  np.sin(self.alpha)
+    calpha =  np.cos(self.alpha)
+    self.V = self.a*self.b*self.c*sgamma*self.c*(1-cbeta*(((calpha/(cbeta)-cgamma)*1.0/sgamma)**2+1.0)**(0.5))**(.5)#/(const.BOHR)**3
+    V=self.V
+    print self.V
+
 class Atom(object):
   def __init__(self, x, y, z, pot=0, tag='', r=0.0, n=0):
     self.x = x
@@ -327,6 +425,9 @@ class Atom(object):
 
   def __str__(self):
     return " %10.5f %10.5f %10.5f  %3d  %10s %10.5f % 5d" % (self.x,self.y,self.z,self.pot,self.tag,self.r,self.n)
+
+  def xyz(self):
+    return " %2s %10.5f %10.5f  %10.5f" % (self.tag,self.x,self.y,self.z)
 
   def __repr__(self):
     return "xray.feff.Atom(%10.5f, %10.5f, %10.5f)" % (self.x, self.y, self.z)
