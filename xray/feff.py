@@ -4,6 +4,8 @@ from scipy.interpolate import splrep, splint
 from numpy import fft
 #from .lib import fortranfile
 import fortranfile
+from operator import itemgetter, attrgetter
+from . import const
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -315,6 +317,94 @@ def rotation_matrix(axis, theta):
 
   return R
 
+class Lattice(object):
+  def __init__(self, a, b, c, alpha=0, beta=0, gamma=0, x=1, y=1, z=1, n=10, tag="", filename=""):
+    self.a = a
+    self.b = b
+    self.c = c
+    self.x = x
+    self.y = y
+    self.z = z
+    self.alpha = alpha*np.pi/180.0
+    self.beta = beta*np.pi/180.0
+    self.gamma = gamma*np.pi/180.0
+    self.n = n;
+    self.tag = tag;
+    self.filename = filename;
+
+  def partial_coordinates_transform_matrix(self):
+    R = np.zeros((3,3))
+    sgamma = np.sin(self.gamma)
+    cgamma = np.cos(self.gamma)
+    sbeta  =  np.sin(self.beta)
+    cbeta  =  np.cos(self.beta)
+    salpha =  np.sin(self.alpha)
+    calpha =  np.cos(self.alpha)
+
+    V = np.abs(1-calpha**2-cbeta**2-cgamma**2+2*calpha*cbeta*cgamma)**(0.5)
+ 
+    R[0,0] = self.a
+    R[0,1] = self.b * cgamma
+    R[0,2] = self.c * cbeta
+    R[1,0] = 0.0
+    R[1,1] = self.b * sgamma
+    R[1,2] = self.c * (calpha-cbeta*cgamma)/sgamma
+    R[2,0] = 0.0
+    R[2,1] = 0.0
+    R[2,2] = self.c*V/sgamma
+
+    return R
+
+  def lattice(self,structure='hcp'): 
+    self.atoms=[]
+    R = self.partial_coordinates_transform_matrix()
+    dx,dy,dz = np.dot(R, np.array([self.x,self.y,self.z]))
+    for i in range(-self.n,self.n+1):
+     for j in range(-self.n,self.n+1):
+      for k in range(-self.n,self.n+1):
+       if np.abs(i)+ np.abs(j)+ np.abs(k) <= self.n:
+        xl,yl,zl = np.dot(R, np.array([i,j,k]))
+        self.atoms.append(Atom(
+      	  x = xl,
+      	  y = yl,
+          z = zl,
+      	  pot = 1,
+      	  tag = self.tag,
+      	  r = (xl**2+yl**2+zl**2)**(0.5),
+      	  n = np.abs(i) + np.abs(j) + np.abs(k)))
+        #if structure=='hcp':  
+        self.atoms.append(Atom(
+          x = xl+dx,
+          y = yl+dy,
+          z = zl+dz,
+          pot = 1,
+          tag = self.tag,
+          r =((xl+dx)**2 +
+            (yl+dy)**2 +
+            (zl+dz)**2)**(0.5),
+          n = np.abs(i) + np.abs(j) + np.abs(k)))
+
+    self.atoms.sort(key=attrgetter('r'))
+    f = open(self.filename + '.xyz', 'w')
+    g = open(self.filename + '.inp', 'w')
+    i = 0
+    for a in self.atoms:
+      a.n = i
+      g.write(str(a)+"\n")
+      f.write(a.xyz()+"\n")
+      i+=1
+
+  def volume(self,V=0):
+    sgamma = np.sin(self.gamma)
+    cgamma = np.cos(self.gamma)
+    sbeta  =  np.sin(self.beta)
+    cbeta  =  np.cos(self.beta)
+    salpha =  np.sin(self.alpha)
+    calpha =  np.cos(self.alpha)
+    self.V = self.a*self.b*self.c*sgamma*self.c*(1-cbeta*(((calpha/(cbeta)-cgamma)*1.0/sgamma)**2+1.0)**(0.5))**(.5)#/(const.BOHR)**3
+    V=self.V
+    print self.V
+
 class Atom(object):
   def __init__(self, x, y, z, pot=0, tag='', r=0.0, n=0):
     self.x = x
@@ -327,6 +417,9 @@ class Atom(object):
 
   def __str__(self):
     return " %10.5f %10.5f %10.5f  %3d  %10s %10.5f % 5d" % (self.x,self.y,self.z,self.pot,self.tag,self.r,self.n)
+
+  def xyz(self):
+    return " %2s %10.5f %10.5f  %10.5f" % (self.tag,self.x,self.y,self.z)
 
   def __repr__(self):
     return "xray.feff.Atom(%10.5f, %10.5f, %10.5f)" % (self.x, self.y, self.z)
