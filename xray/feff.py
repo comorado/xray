@@ -3,7 +3,7 @@ from itertools import cycle
 from scipy.interpolate import splrep, splint
 from numpy import fft
 #from .lib import fortranfile
-import fortranfile
+import fortranfile, random
 from operator import itemgetter, attrgetter
 from . import const
 
@@ -355,33 +355,39 @@ class Lattice(object):
 
     return R
 
-  def lattice(self,structure='hcp'): 
+  def lattice(self,structure='hcp', shake=1,d=0.01): 
     self.atoms=[]
     R = self.partial_coordinates_transform_matrix()
     dx,dy,dz = np.dot(R, np.array([self.x,self.y,self.z]))
+    x1,y1,z1=(0.0,0.0,0.0)
     for i in range(-self.n,self.n+1):
      for j in range(-self.n,self.n+1):
       for k in range(-self.n,self.n+1):
        if np.abs(i)+ np.abs(j)+ np.abs(k) <= self.n:
         xl,yl,zl = np.dot(R, np.array([i,j,k]))
+        if shake==1:
+          x1,y1,z1=self.random(d)
+
         self.atoms.append(Atom(
-      	  x = xl,
-      	  y = yl,
-          z = zl,
+      	  x = xl+x1,
+      	  y = yl+y1,
+          z = zl+z1,
       	  pot = 1,
       	  tag = self.tag,
-      	  r = (xl**2+yl**2+zl**2)**(0.5),
+      	  r = ((xl+x1)**2+(yl+y1)**2+(zl+z1)**2)**(0.5),
       	  n = np.abs(i) + np.abs(j) + np.abs(k)))
         #if structure=='hcp':  
+        if shake==1:
+          x1,y1,z1=self.random(d)
         self.atoms.append(Atom(
-          x = xl+dx,
-          y = yl+dy,
-          z = zl+dz,
+          x = xl+dx+x1,
+          y = yl+dy+y1,
+          z = zl+dz+z1,
           pot = 1,
           tag = self.tag,
-          r =((xl+dx)**2 +
-            (yl+dy)**2 +
-            (zl+dz)**2)**(0.5),
+          r =((xl+dx+x1)**2 +
+            (yl+dy+y1)**2 +
+            (zl+dz+z1)**2)**(0.5),
           n = np.abs(i) + np.abs(j) + np.abs(k)))
 
     self.atoms.sort(key=attrgetter('r'))
@@ -393,6 +399,9 @@ class Lattice(object):
       g.write(str(a)+"\n")
       f.write(a.xyz()+"\n")
       i+=1
+  def random(self,d):
+    return (self.x*random.uniform(-d,d),self.y*random.uniform(-d,d),self.z*random.uniform(-d,d))
+    
 
   def volume(self,V=0):
     sgamma = np.sin(self.gamma)
@@ -403,7 +412,7 @@ class Lattice(object):
     calpha =  np.cos(self.alpha)
     self.V = self.a*self.b*self.c*sgamma*self.c*(1-cbeta*(((calpha/(cbeta)-cgamma)*1.0/sgamma)**2+1.0)**(0.5))**(.5)#/(const.BOHR)**3
     V=self.V
-    print self.V
+    return self.V
 
 class Atom(object):
   def __init__(self, x, y, z, pot=0, tag='', r=0.0, n=0):
