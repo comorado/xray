@@ -485,11 +485,18 @@ class InputFile(object):
       a.z *= scale_z
       a.r = np.sqrt(a.x**2 + a.y**2 + a.z**2)
 
-  def rotate_atoms_to(self, zhat):
+  def rotate_atoms_to(self, zhat, axis="z"):
     """
     Rotates atoms so that z axis now points along `zhat`
     """
-    ax,ang = rot_axis_angle(np.array([0.,0.,1.]), zhat)
+    if axis =="y":
+       vec = (np.array([0.,1.,0.])) 
+    elif axis == "x":
+       vec = (np.array([1.,0.,0.])) 
+    else:
+       vec = (np.array([0.,0.,1.])) 
+
+    ax,ang = rot_axis_angle(vec, zhat)
     R = rotation_matrix(ax, -ang)
     self.rotate_atoms(R)
 
