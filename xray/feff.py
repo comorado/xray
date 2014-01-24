@@ -355,41 +355,45 @@ class Lattice(object):
 
     return R
 
-  def lattice(self,structure='hcp', shake=1,d=0.01): 
+  def lattice(self,structure='hcp',B=0.00): 
     self.atoms=[]
     R = self.partial_coordinates_transform_matrix()
     dx,dy,dz = np.dot(R, np.array([self.x,self.y,self.z]))
-    x1,y1,z1=(0.0,0.0,0.0)
+    dx,dy,dz=(0.0,0.0,0.0)
+    sigma = B/(8.0*(np.pi)**2)
+    m=0
+    distr = np.random.normal(0.0,sigma,(np.floor((4.0/3.0)*np.pi*(self.n)**3),3))
+    #H, xedges, yedges = np.histogram2d(distr[:,:1], x, bins=(50,50))
     for i in range(-self.n,self.n+1):
      for j in range(-self.n,self.n+1):
       for k in range(-self.n,self.n+1):
-       if np.abs(i)+ np.abs(j)+ np.abs(k) <= self.n:
+       if (i**2 + j**2 + k**2)**(0.5) <= self.n:
         xl,yl,zl = np.dot(R, np.array([i,j,k]))
-        if shake==1:
-          x1,y1,z1=self.random(d)
-
-        self.atoms.append(Atom(
-      	  x = xl+x1,
-      	  y = yl+y1,
-          z = zl+z1,
-      	  pot = 1,
+        if B>0:
+          dx,dy,dz=distr[m]
+          m += 1;
+          dx *=self.x
+          dy *=self.y
+          dz *=self.z
+        if (i,j,k) ==(0,0,0):
+          self.atoms.append(Atom(
+	  x = xl,
+      	  y = yl,
+          z = zl,
+      	  pot = 0,
       	  tag = self.tag,
-      	  r = ((xl+x1)**2+(yl+y1)**2+(zl+z1)**2)**(0.5),
+      	  r = ((xl+dx)**2+(yl+dy)**2+(zl+dz)**2)**(0.5),
       	  n = np.abs(i) + np.abs(j) + np.abs(k)))
-        #if structure=='hcp':  
-        if shake==1:
-          x1,y1,z1=self.random(d)
-        self.atoms.append(Atom(
-          x = xl+dx+x1,
-          y = yl+dy+y1,
-          z = zl+dz+z1,
-          pot = 1,
-          tag = self.tag,
-          r =((xl+dx+x1)**2 +
-            (yl+dy+y1)**2 +
-            (zl+dz+z1)**2)**(0.5),
-          n = np.abs(i) + np.abs(j) + np.abs(k)))
-
+        else:
+          self.atoms.append(Atom(
+      	    x = xl+dx,
+      	    y = yl+dy,
+            z = zl+dz,
+      	    pot = 1,
+      	    tag = self.tag,
+      	    r = ((xl+dx)**2+(yl+dy)**2+(zl+dz)**2)**(0.5),
+      	    n = np.abs(i) + np.abs(j) + np.abs(k)))
+    
     self.atoms.sort(key=attrgetter('r'))
     f = open(self.filename + '.xyz', 'w')
     g = open(self.filename + '.inp', 'w')
