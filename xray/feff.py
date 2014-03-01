@@ -367,8 +367,7 @@ class Lattice(object):
       #np.random.seed(1)
       np.random.seed()
       distr = np.random.normal(0.0,sigma,(np.floor(2.0*(4.0/3.0)*np.pi*(self.n)**3),3))
-
-    #H, xedges, yedges = np.histogram2d(distr[:,:1], x, bins=(50,50))
+   #H, xedges, yedges = np.histogram2d(distr[:,:1], x, bins=(50,50))
     for i in range(-self.n,self.n+1):
      for j in range(-self.n,self.n+1):
       for k in range(-self.n,self.n+1):
@@ -376,14 +375,14 @@ class Lattice(object):
         xl,yl,zl = np.dot(R, np.array([i,j,k]))
         if B > 0.0:
           #dx,dy,dz+=distr[m]
-          xl +=distr[m][0]*self.x
-          yl +=distr[m][1]*self.y
-          zl +=distr[m][2]*self.z
+          xl +=distr[m][0]
+          yl +=distr[m][1]
+          zl +=distr[m][2]
           m += 1;
         #else:
         #dx,dy,dz = np.dot(R, np.array([self.x,self.y,self.z]))
         #print dx,dy,dz
-        if (i,j,k) ==(0,0,0):
+       if (i,j,k) ==(0,0,0):
           self.atoms.append(Atom(
 	  x = xl,
       	  y = yl,
@@ -430,15 +429,13 @@ class Lattice(object):
    
 
           self.atoms.append(Atom(
-      	    x = xl+dx,
+     	    x = xl+dx,
       	    y = yl+dy,
             z = zl+dz,
       	    pot = 1,
       	    tag = self.tag,
       	    r = ((xl+dx)**2+(yl+dy)**2+(zl+dz)**2)**(0.5),
       	    n = np.abs(i) + np.abs(j) + np.abs(k)))
-
-      	    #pot = np.abs(i) + np.abs(j) + np.abs(k) if (np.abs(i) + np.abs(j) + np.abs(k)<14) else 13,
     
     self.atoms.sort(key=attrgetter('r'))
     num = 0
