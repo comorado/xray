@@ -364,7 +364,9 @@ class Lattice(object):
     m=0
     potNum=0
     if B>0: 
-      distr = np.random.normal(0.0,sigma,2.0*(np.floor((4.0/3.0)*np.pi*(self.n)**3),3))
+      #np.random.seed(1)
+      np.random.seed()
+      distr = np.random.normal(0.0,sigma,(np.floor(2.0*(4.0/3.0)*np.pi*(self.n)**3),3))
 
     #H, xedges, yedges = np.histogram2d(distr[:,:1], x, bins=(50,50))
     for i in range(-self.n,self.n+1):
