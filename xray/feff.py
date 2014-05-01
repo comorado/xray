@@ -437,6 +437,48 @@ class Atom(object):
   def __repr__(self):
     return "xray.feff.Atom(%10.5f, %10.5f, %10.5f)" % (self.x, self.y, self.z)
 
+class AtomXYZ(object):
+  def __init__(self, x, y, z, r):
+    self.x = x
+    self.y = y
+    self.z = z
+    self.r = r
+
+  def xyz(self):
+    return " %2s %10.5f %10.5f  %10.5f" % (self.tag,self.x,self.y,self.z)
+
+  def __repr__(self):
+    return "xray.feff.AtomXYZ(%10.5f, %10.5f, %10.5f)" % (self.x, self.y, self.z)
+
+
+class CalculateRadialDistribution(object):
+  def __init__(self, filename):
+    if filename:
+      self.load(filename,nbins)
+
+  def load(self, filename,nbins):
+    self.filename = filename
+    self.atoms = []
+    self.nbins = nbins
+
+    with open(filename) as f:
+
+      for line in f:
+            pieces = line.split()
+            self.atoms.append(AtomXYZ(
+                x = float(pieces[0]),
+                y = float(pieces[1]),
+                z = float(pieces[2]),
+                r = (float(pieces[0])**2 + float(pieces[1])**2 + float(pieces[2])**2)**(0.5)
+                ))
+  
+    self.atoms.sort(key=attrgetter('r'))
+
+  def calculate(self):
+    last = self.atoms[-1]
+    print last.r/self.nbins
+
+
 class InputFile(object):
   def __init__(self, filename):
     if filename:
