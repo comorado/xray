@@ -6,6 +6,7 @@ from numpy import fft
 import fortranfile, random
 from operator import itemgetter, attrgetter
 from . import const
+import matplotlib.pyplot as plt
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -321,7 +322,7 @@ class Lattice(object):
   def __init__(self, a, b, c, alpha=0, beta=0, gamma=0, x=1, y=1, z=1, n=10, tag="", filename=""):
     self.a = a
     self.b = b
-    self.c = c
+    elf.c = c
     self.x = x
     self.y = y
     self.z = z
@@ -409,7 +410,7 @@ class Lattice(object):
       	  r = ((xl+dx)**2+(yl+dy)**2+(zl+dz)**2)**(0.5),
       	  n = np.abs(i) + np.abs(j) + np.abs(k)))
 
-        else:
+       else:
           self.atoms.append(Atom(
       	    x = xl,
       	    y = yl,
@@ -505,7 +506,7 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename):
+  def __init__(self, filename,nbins):
     if filename:
       self.load(filename,nbins)
 
@@ -525,11 +526,26 @@ class CalculateRadialDistribution(object):
                 r = (float(pieces[0])**2 + float(pieces[1])**2 + float(pieces[2])**2)**(0.5)
                 ))
   
-    self.atoms.sort(key=attrgetter('r'))
+    #self.atoms.sort(key=attrgetter('r'))
 
   def calculate(self):
-    last = self.atoms[-1]
-    print last.r/self.nbins
+    #last = self.atoms[-1]
+    #i = 0
+    dist = []
+    for atom1 in self.atoms:
+       #i = i+1
+       for atom2 in self.atoms:
+          dist.append(((atom1.x - atom2.x)**2 +(atom1.y - atom2.y)**2 +(atom1.z - atom2.z)**2)**(0.5))
+          dist.append(((atom1.x + atom2.x)**2 +(atom1.y - atom2.y)**2 +(atom1.z - atom2.z)**2)**(0.5))
+          dist.append(((atom1.x - atom2.x)**2 +(atom1.y + atom2.y)**2 +(atom1.z - atom2.z)**2)**(0.5))
+          dist.append(((atom1.x - atom2.x)**2 +(atom1.y - atom2.y)**2 +(atom1.z + atom2.z)**2)**(0.5))
+          dist.append(((atom1.x - atom2.x)**2 +(atom1.y + atom2.y)**2 +(atom1.z + atom2.z)**2)**(0.5))
+          dist.append(((atom1.x + atom2.x)**2 +(atom1.y + atom2.y)**2 +(atom1.z - atom2.z)**2)**(0.5))
+          dist.append(((atom1.x + atom2.x)**2 +(atom1.y - atom2.y)**2 +(atom1.z + atom2.z)**2)**(0.5))
+          dist.append(((atom1.x + atom2.x)**2 +(atom1.y + atom2.y)**2 +(atom1.z + atom2.z)**2)**(0.5))
+
+    hist =plt.hist(dist,self.nbins)
+    plt.show()
 
 
 class InputFile(object):
