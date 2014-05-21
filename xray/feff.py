@@ -587,24 +587,8 @@ class CalculateRadialDistribution(object):
     f.close()
     self.nframes = i - blank_count - 8
 
- #   self.calculate(self.atoms_initial)
-    hist =plt.hist(dist,1400)
-    #print hist[0]
+    hist =plt.hist(dist,4400)
     plt.show()
-   
-    #print self.nframes,self.natoms,self.nframes/self.natoms
-
-    #with open(filename) as f:
-
-      #for line in f:
-#            pieces = line.split()
-#            self.atoms.append(AtomXYZ(
-#                x = float(pieces[0]) * self.x,
-#                y = float(pieces[1]) * self.y,
-#                z = float(pieces[2]) * self.z,
-#                r = 0 
-#                ))
-            #print"    %10.5f %10.5f %10.5f" % (float(pieces[0]) * self.x,float(pieces[1]) * self.y,float(pieces[2]) * self.z)
 
   def calculate(self, atoms, cutoff=None):
     if cutoff == None:
@@ -617,15 +601,10 @@ class CalculateRadialDistribution(object):
             for iy in range(-1,2):
               for iz in range(-1,2):
                 d =((atom1.x - (ix * self.xvector[0] + atom2.x))**2 +(atom1.y - (iy * self.yvector[1] + atom2.y))**2 +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
-                #print d
+
                 if d != 0 and d < cutoff:
                   dist.append(d)
-    #print len(dist), cutoff
     return dist
-    #hist =plt.hist(dist,400)
-    #print hist[0]
-    #plt.show()
-
 
 class InputFile(object):
   def __init__(self, filename):
