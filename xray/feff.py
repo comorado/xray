@@ -527,8 +527,8 @@ class CalculateRadialDistribution(object):
 
     i = 0
     blank_count = 0
-    dist = []
-    m = 0
+    dist1 = []
+    dist2 = []
     with open(filename,"r") as f:
       for line in f:
         if i == 1:
@@ -557,53 +557,65 @@ class CalculateRadialDistribution(object):
                 y = float(pieces[1]) * self.yvector[1],
                 z = float(pieces[2]) * self.zvector[2],
                 r = 0))
-            self.atoms.append(AtomXYZ(
-                x = float(pieces[0]) * self.xvector[0],
-                y = float(pieces[1]) * self.yvector[1],
-                z = float(pieces[2]) * self.zvector[2],
-                r = 0))
+            #self.atoms.append(AtomXYZ(
+            #    x = float(pieces[0]) * self.xvector[0],
+            #    y = float(pieces[1]) * self.yvector[1],
+            #    z = float(pieces[2]) * self.zvector[2],
+            #    r = 0))
 
         if line.strip() != '' and i >= 7 + self.natoms:
+            pieces = line.split()
             self.atoms.append(AtomXYZ(
                 x = float(pieces[0]) * self.xvector[0],
                 y = float(pieces[1]) * self.yvector[1],
                 z = float(pieces[2]) * self.zvector[2],
                 r = 0))
-#            #print m
-#            #print len(self.atoms)
-#            m += 1
+
         if line.strip() == '' and i > 8:
-                #print len(self.atoms), i
-                dist.extend(self.calculate(self.atoms))
-                #print dist
+                #print "Len self atoms: ",len(self.atoms)
+                dist1.extend(self.calculate(self.atoms))
                 self.atoms = [] 
-                #m = -1
 
         i += 1
-    #print len(self.atoms), i
-    dist.extend(self.calculate(self.atoms))
+    #print len(dist1)
+    dist1.extend(self.calculate(self.atoms))
+
+    dist2.extend(self.calculate(self.atoms_initial))
     self.atoms = [] 
  
     f.close()
     self.nframes = i - blank_count - 8
 
-    hist =plt.hist(dist,4400)
+    hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
+    hist2 =plt.hist(dist2,200,normed=True,color='red')
     plt.show()
 
   def calculate(self, atoms, cutoff=None):
     if cutoff == None:
-       cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])+5
+       cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])
+
     dist = []
+    m = 0
+    d = 0
 
     for atom1 in atoms:
        for atom2 in atoms:
           for ix in range(-1,2):
+            dx = (atom1.x - (ix * self.xvector[0] + atom2.x))**2
+            #if (dx >= cutoff**2):
+            #   break
             for iy in range(-1,2):
+              dy = dx + (atom1.y - (iy * self.yvector[1] + atom2.y))**2
+              #if (dy>= cutoff**2):
+              #   break
               for iz in range(-1,2):
-                d =((atom1.x - (ix * self.xvector[0] + atom2.x))**2 +(atom1.y - (iy * self.yvector[1] + atom2.y))**2 +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
+                d =(dy +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
 
                 if d != 0 and d < cutoff:
                   dist.append(d)
+                  m += 1
+
+    #print "Length dist: ", len(dist), m, d
     return dist
 
 class InputFile(object):
