@@ -385,7 +385,7 @@ class Lattice(object):
         #print dx,dy,dz
        if (i,j,k) ==(0,0,0):
           self.atoms.append(Atom(
-	  x = xl,
+	      x = xl,
       	  y = yl,
           z = zl,
       	  pot = 0,
@@ -402,7 +402,7 @@ class Lattice(object):
             m += 1;
    
           self.atoms.append(Atom(
-	  x = xl+dx,
+	      x = xl+dx,
       	  y = yl+dy,
           z = zl+dz,
       	  pot = 1,
@@ -506,69 +506,110 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename):
+  def __init__(self, filename, frameBegin=None, frameEnd=None):
     if filename:
       self.load(filename)
 
-  def load(self, filename):
-
-       
+  def loadXYZ(self, filename, frameBegin=None, frameEnd=None):
  
     self.filename = filename
     self.atoms = []
     self.atoms_initial = []
     self.atoms_final = []
-    #self.nbins = nbins
-    #self.x = xvector
-    #self.y = yvector
-    #self.z = zvector
+    self.scale = 1
+    self.natoms = 0
+
+    blankCount = 0
+    dist1 = []
+    l = 1
+    self.xvector = (1,1,1)
+    self.yvector = (1,1,1)
+    self.zvector = (1,1,1)
+    if frameBegin == None:
+       frameBegin = 0
+    if frameEnd == None:
+       frameEnd = maxInt 
+    
+    with open(filename,"r") as f:
+      for line in f:
+          if line.strip() != '' and len(line.split()) > 3 and frameEnd >= blankCount >= frameBegin:
+              pieces = line.split()
+              self.atoms.append(AtomXYZ(
+                  x = float(pieces[l]),
+                  y = float(pieces[l+1]),
+                  z = float(pieces[l+2]),
+                  r = 0))
+  
+        if line.strip() == '':
+           blankCount += 1
+           if len(self.atoms()) > 0:
+             dist1.extend(self.calculate(self.atoms))
+             self.atoms = [] 
+
+    #print len(dist1)
+    dist1.extend(self.calculate(self.atoms))
+
+ 
+    f.close()
+    self.nframes = blankCount
+
+    hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
+    plt.show()
+
+  def load(self, filename):
+ 
+    self.filename = filename
+    self.atoms = []
+    self.atoms_initial = []
+    self.atoms_final = []
     self.scale = 1
     self.natoms = 0
 
     i = 0
-    blank_count = 0
+    blankCount = 0
     dist1 = []
     dist2 = []
+    l = 0
     with open(filename,"r") as f:
       for line in f:
         if i == 1:
             pieces = line.split()
-            self.scale = float(pieces[0])
+            self.scale = float(pieces[l])
         if i == 2:
             pieces = line.split()
-            self.xvector = (float(pieces[0]),float(pieces[1]),float(pieces[2]))
+            self.xvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
         if i == 3:
             pieces = line.split()
-            self.yvector = (float(pieces[0]),float(pieces[1]),float(pieces[2]))
+            self.yvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
         if i == 4:
             pieces = line.split()
-            self.zvector = (float(pieces[0]),float(pieces[1]),float(pieces[2]))
+            self.zvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
         if i == 6:
             pieces = line.split()
-            self.natoms = float(pieces[0])
+            self.natoms = float(pieces[l])
 
         if line.strip() == '':
-           blank_count += 1
+           blankCount += 1
 
         if i > 7 and i < 7 + self.natoms:
             pieces = line.split()
             self.atoms_initial.append(AtomXYZ(
-                x = float(pieces[0]) * self.xvector[0],
-                y = float(pieces[1]) * self.yvector[1],
-                z = float(pieces[2]) * self.zvector[2],
+                x = float(pieces[l]) * self.xvector[0],
+                y = float(pieces[l+1]) * self.yvector[1],
+                z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
             #self.atoms.append(AtomXYZ(
-            #    x = float(pieces[0]) * self.xvector[0],
-            #    y = float(pieces[1]) * self.yvector[1],
-            #    z = float(pieces[2]) * self.zvector[2],
+            #    x = float(pieces[l]) * self.xvector[0],
+            #    y = float(pieces[l+1]) * self.yvector[1],
+            #    z = float(pieces[l+2]) * self.zvector[2],
             #    r = 0))
 
         if line.strip() != '' and i >= 7 + self.natoms:
             pieces = line.split()
             self.atoms.append(AtomXYZ(
-                x = float(pieces[0]) * self.xvector[0],
-                y = float(pieces[1]) * self.yvector[1],
-                z = float(pieces[2]) * self.zvector[2],
+                x = float(pieces[l]) * self.xvector[0],
+                y = float(pieces[l+1]) * self.yvector[1],
+                z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
 
         if line.strip() == '' and i > 8:
@@ -584,37 +625,50 @@ class CalculateRadialDistribution(object):
     self.atoms = [] 
  
     f.close()
-    self.nframes = i - blank_count - 8
+    self.nframes = i - blankCount - 8
 
     hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
     hist2 =plt.hist(dist2,200,normed=True,color='red')
     plt.show()
 
-  def calculate(self, atoms, cutoff=None):
+  def calculate(self, atoms, cutoff=None, xyz=None):
     if cutoff == None:
        cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])
 
     dist = []
     m = 0
     d = 0
+    if xyz==None:
+      for atom1 in atoms:
+         for atom2 in atoms:
+            for ix in range(-1,2):
+              dx = (atom1.x - (ix * self.xvector[0] + atom2.x))**2
+              if (dx >= cutoff**2):
+                 break
+              for iy in range(-1,2):
+                dy = dx + (atom1.y - (iy * self.yvector[1] + atom2.y))**2
+                if (dy>= cutoff**2):
+                   break
+                for iz in range(-1,2):
+                  d =(dy +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
+  
+                  if d != 0 and d < cutoff:
+                    dist.append(d)
+                    m += 1
+    else:
+       for atom1 in atoms:
+         for atom2 in atoms:
+                  d = 0
+                  d += (atom1.x - atom2.x)**2
+                  d += (atom1.y - atom2.y)**2
+                  d += (atom1.z - atom2.z)**2
 
-    for atom1 in atoms:
-       for atom2 in atoms:
-          for ix in range(-1,2):
-            dx = (atom1.x - (ix * self.xvector[0] + atom2.x))**2
-            #if (dx >= cutoff**2):
-            #   break
-            for iy in range(-1,2):
-              dy = dx + (atom1.y - (iy * self.yvector[1] + atom2.y))**2
-              #if (dy>= cutoff**2):
-              #   break
-              for iz in range(-1,2):
-                d =(dy +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
-
-                if d != 0 and d < cutoff:
-                  dist.append(d)
-                  m += 1
-
+                  d = d **(0.5)
+  
+                  if d != 0 and d < cutoff:
+                    dist.append(d)
+                    m += 1
+       
     #print "Length dist: ", len(dist), m, d
     return dist
 
