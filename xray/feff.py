@@ -540,14 +540,14 @@ class CalculateRadialDistribution(object):
                   z = float(pieces[l+2]),
                   r = 0))
   
-        if line.strip() == '':
-           blankCount += 1
-           if len(self.atoms()) > 0:
-             dist1.extend(self.calculate(self.atoms))
-             self.atoms = [] 
-
+          if line.strip() == '':
+             blankCount += 1
+             if len(self.atoms()) > 0:
+               dist1.extend(self.calculate(self.atoms,cutoff=5,xyz=1))
+               self.atoms = [] 
+  
     #print len(dist1)
-    dist1.extend(self.calculate(self.atoms))
+    dist1.extend(self.calculate(self.atoms,cutoff=5,xyz=1))
 
  
     f.close()
@@ -634,6 +634,7 @@ class CalculateRadialDistribution(object):
   def calculate(self, atoms, cutoff=None, xyz=None):
     if cutoff == None:
        cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])
+      
 
     dist = []
     m = 0
