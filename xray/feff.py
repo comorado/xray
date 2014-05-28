@@ -7,6 +7,7 @@ import fortranfile, random
 from operator import itemgetter, attrgetter
 from . import const
 import matplotlib.pyplot as plt
+import sys as sys
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -506,9 +507,12 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename, frameBegin=None, frameEnd=None):
+  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None):
     if filename:
-      self.load(filename)
+      if xyz== None:
+        self.load(filename)
+      else:
+        self.loadXYZ(filename,frameBegin, frameEnd)
 
   def loadXYZ(self, filename, frameBegin=None, frameEnd=None):
  
@@ -528,7 +532,7 @@ class CalculateRadialDistribution(object):
     if frameBegin == None:
        frameBegin = 0
     if frameEnd == None:
-       frameEnd = maxInt 
+       frameEnd = sys.maxint 
     
     with open(filename,"r") as f:
       for line in f:
@@ -542,9 +546,9 @@ class CalculateRadialDistribution(object):
   
           if line.strip() == '':
              blankCount += 1
-             if len(self.atoms()) > 0:
-               dist1.extend(self.calculate(self.atoms,cutoff=5,xyz=1))
-               self.atoms = [] 
+             #if len(self.atoms()) > 0:
+             dist1.extend(self.calculate(self.atoms,cutoff=5,xyz=1))
+             self.atoms = [] 
   
     #print len(dist1)
     dist1.extend(self.calculate(self.atoms,cutoff=5,xyz=1))
@@ -659,7 +663,7 @@ class CalculateRadialDistribution(object):
     else:
        for atom1 in atoms:
          for atom2 in atoms:
-                  d = 0
+                  d = 0.0
                   d += (atom1.x - atom2.x)**2
                   d += (atom1.y - atom2.y)**2
                   d += (atom1.z - atom2.z)**2
