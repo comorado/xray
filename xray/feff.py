@@ -507,10 +507,10 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None):
+  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None,cutoff=None):
     if filename:
       if xyz== None:
-        self.load(filename)
+        self.load(filename,cutoff=None)
       else:
         self.loadXYZ(filename,frameBegin, frameEnd)
 
@@ -560,7 +560,7 @@ class CalculateRadialDistribution(object):
     hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
     plt.show()
 
-  def load(self, filename):
+  def load(self, filename,cutoff=None):
  
     self.filename = filename
     self.atoms = []
@@ -618,14 +618,14 @@ class CalculateRadialDistribution(object):
 
         if line.strip() == '' and i > 8:
                 #print "Len self atoms: ",len(self.atoms)
-                dist1.extend(self.calculate(self.atoms))
+                dist1.extend(self.calculate(self.atoms,cutoff))
                 self.atoms = [] 
 
         i += 1
     #print len(dist1)
-    dist1.extend(self.calculate(self.atoms))
+    dist1.extend(self.calculate(self.atoms,cutoff))
 
-    dist2.extend(self.calculate(self.atoms_initial))
+    dist2.extend(self.calculate(self.atoms_initial,cutoff))
     self.atoms = [] 
  
     f.close()
