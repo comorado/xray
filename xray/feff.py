@@ -510,7 +510,8 @@ class CalculateRadialDistribution(object):
   def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None,cutoff=None):
     if filename:
       if xyz== None:
-        self.load(filename,cutoff=None)
+        print cutoff
+        self.load(filename,cutoff)
       else:
         self.loadXYZ(filename,frameBegin, frameEnd)
 
@@ -560,7 +561,7 @@ class CalculateRadialDistribution(object):
     hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
     plt.show()
 
-  def load(self, filename,cutoff=None):
+  def load(self, filename, cutoff=None):
  
     self.filename = filename
     self.atoms = []
@@ -602,11 +603,11 @@ class CalculateRadialDistribution(object):
                 y = float(pieces[l+1]) * self.yvector[1],
                 z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
-            #self.atoms.append(AtomXYZ(
-            #    x = float(pieces[l]) * self.xvector[0],
-            #    y = float(pieces[l+1]) * self.yvector[1],
-            #    z = float(pieces[l+2]) * self.zvector[2],
-            #    r = 0))
+            self.atoms.append(AtomXYZ(
+                x = float(pieces[l]) * self.xvector[0],
+                y = float(pieces[l+1]) * self.yvector[1],
+                z = float(pieces[l+2]) * self.zvector[2],
+                r = 0))
 
         if line.strip() != '' and i >= 7 + self.natoms:
             pieces = line.split()
@@ -636,8 +637,11 @@ class CalculateRadialDistribution(object):
     plt.show()
 
   def calculate(self, atoms, cutoff=None, xyz=None):
+    print cutoff
     if cutoff == None:
        cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])
+       if cutoff > 5:
+          cutoff = 4
       
 
     dist = []
@@ -648,18 +652,16 @@ class CalculateRadialDistribution(object):
          for atom2 in atoms:
             for ix in range(-1,2):
               dx = (atom1.x - (ix * self.xvector[0] + atom2.x))**2
-              if (dx >= cutoff**2):
-                 break
-              for iy in range(-1,2):
-                dy = dx + (atom1.y - (iy * self.yvector[1] + atom2.y))**2
-                if (dy>= cutoff**2):
-                   break
-                for iz in range(-1,2):
-                  d =(dy +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
+              if (dx**(0.5) < cutoff):
+                for iy in range(-1,2):
+                  dy = dx + (atom1.y - (iy * self.yvector[1] + atom2.y))**2
+                  if (dy**(0.5) < cutoff):
+                    for iz in range(-1,2):
+                      d =(dy +(atom1.z - (iz * self.zvector[2] + atom2.z))**2)**(0.5)
   
-                  if d != 0 and d < cutoff:
-                    dist.append(d)
-                    m += 1
+                      if d != 0 and d < cutoff:
+                        dist.append(d)
+                        m += 1
     else:
        for atom1 in atoms:
          for atom2 in atoms:
