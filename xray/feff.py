@@ -507,11 +507,11 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None,cutoff=None):
+  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None,cutoff=None, fileSave=None, title = None):
     if filename:
       if xyz== None:
         print cutoff
-        self.load(filename,cutoff)
+        self.load(filename, cutoff, frameBegin, frameEnd, fileSave, title)
       else:
         self.loadXYZ(filename,frameBegin, frameEnd)
 
@@ -561,7 +561,7 @@ class CalculateRadialDistribution(object):
     hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
     plt.show()
 
-  def load(self, filename, cutoff=None):
+  def load(self, filename, cutoff=None, frameBegin=None, frameEnd=None, fileSave=None, title = None):
  
     self.filename = filename
     self.atoms = []
@@ -569,6 +569,11 @@ class CalculateRadialDistribution(object):
     self.atoms_final = []
     self.scale = 1
     self.natoms = 0
+
+    if frameBegin == None:
+       frameBegin = 0
+    if frameEnd == None:
+       frameEnd = sys.maxint 
 
     i = 0
     blankCount = 0
@@ -593,9 +598,6 @@ class CalculateRadialDistribution(object):
             pieces = line.split()
             self.natoms = float(pieces[l])
 
-        if line.strip() == '':
-           blankCount += 1
-
         if i > 7 and i < 7 + self.natoms:
             pieces = line.split()
             self.atoms_initial.append(AtomXYZ(
@@ -609,7 +611,7 @@ class CalculateRadialDistribution(object):
                 z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
 
-        if line.strip() != '' and i >= 7 + self.natoms:
+        if line.strip() != '' and i >= 7 + self.natoms and frameEnd >= blankCount >= frameBegin:
             pieces = line.split()
             self.atoms.append(AtomXYZ(
                 x = float(pieces[l]) * self.xvector[0],
@@ -617,23 +619,34 @@ class CalculateRadialDistribution(object):
                 z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
 
-        if line.strip() == '' and i > 8:
+        if line.strip() == '':
+           blankCount += 1
+
+        if line.strip() == '' and i > 8 and frameEnd >= blankCount >= frameBegin:
+                print blankCount
                 #print "Len self atoms: ",len(self.atoms)
                 dist1.extend(self.calculate(self.atoms,cutoff))
                 self.atoms = [] 
-
+                blankCount += 1
+        print blankCount
         i += 1
     #print len(dist1)
     dist1.extend(self.calculate(self.atoms,cutoff))
 
     dist2.extend(self.calculate(self.atoms_initial,cutoff))
     self.atoms = [] 
- 
+     
     f.close()
     self.nframes = i - blankCount - 8
 
-    hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
+    hist1 =plt.hist(dist1,200,normed=True,color='yellow' )
     hist2 =plt.hist(dist2,200,normed=True,color='red')
+
+    if fileSave != None:
+       plt.title(title)
+       fig = plt.gcf()
+       plt.savefig(fileSave)
+
     plt.show()
 
   def calculate(self, atoms, cutoff=None, xyz=None):
