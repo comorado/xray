@@ -507,12 +507,14 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None,cutoff=None, fileSave=None, title = None,nbins=None):
+  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None, pos=None,cutoff=None, fileSave=None, title = None,nbins=None):
     if filename:
-      if xyz== None:
+      if xyz == None and pos == None:
         print cutoff
-        self.load(filename, cutoff, frameBegin, frameEnd, fileSave, title)
-      else:
+        self.load(filename, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
+      elif pos != None: 
+        self.loadPos(filename, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
+      elif xyz != None:
         self.loadXYZ(filename,frameBegin, frameEnd)
 
   def loadXYZ(self, filename, frameBegin=None, frameEnd=None):
@@ -623,12 +625,12 @@ class CalculateRadialDistribution(object):
            blankCount += 1
 
         if line.strip() == '' and i > 8 and frameEnd >= blankCount >= frameBegin:
-                print blankCount
+                #print blankCount
                 #print "Len self atoms: ",len(self.atoms)
                 dist1.extend(self.calculate(self.atoms,cutoff))
+                k = 0
                 self.atoms = [] 
-                blankCount += 1
-        print blankCount
+        #print blankCount
         i += 1
     #print len(dist1)
     dist1.extend(self.calculate(self.atoms,cutoff))
@@ -638,12 +640,12 @@ class CalculateRadialDistribution(object):
     f.close()
     self.nframes = i - blankCount - 8
     if (nbins != None):
-        bin = nbins
+        bins = nbins
     else:
-        bin = 200
+        bins = 200
 
-    hist1 =plt.hist(dist1,bin,normed=True,color='yellow' )
-    hist2 =plt.hist(dist2,bin,normed=True,color='red')
+    hist1 =plt.hist(dist1, bins,normed=True,color='yellow' )
+    hist2 =plt.hist(dist2, bins,normed=True,color='red')
 
     plt.ylim(0,max(dist1)*1.2)
     if fileSave != None:
@@ -652,6 +654,108 @@ class CalculateRadialDistribution(object):
        plt.savefig(fileSave)
 
     plt.show()
+
+  def loadPos(self, filename, cutoff=None, frameBegin=None, frameEnd=None, fileSave=None, title = None, nbins = None):
+ 
+    self.filename = filename
+    self.atoms = []
+    self.scale = 1
+    self.natoms = 0
+    self.xsumm = []
+    self.ysumm = []
+    self.zsumm = []
+    self.xpos = []
+    self.ypos = []
+    self.zpos = []
+
+
+    if frameBegin == None:
+       frameBegin = 0
+    if frameEnd == None:
+       frameEnd = sys.maxint 
+
+    i = 0
+    blankCount = 0
+    dist1 = []
+    dist2 = []
+    l = 0
+    num = 0
+    with open(filename,"r") as f:
+      for line in f:
+        if i == 1:
+            pieces = line.split()
+            self.scale = float(pieces[l])
+        if i == 2:
+            pieces = line.split()
+            self.xvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 3:
+            pieces = line.split()
+            self.yvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 4:
+            pieces = line.split()
+            self.zvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 6:
+            pieces = line.split()
+            self.natoms = float(pieces[l])
+
+        if i > 7 and i < 7 + self.natoms:
+            pieces = line.split()
+            self.xpos.append(float(pieces[l]) * self.xvector[0])
+            self.ypos.append(float(pieces[l+1]) * self.xvector[1])
+            self.zpos.append(float(pieces[l+2]) * self.xvector[2])
+
+            self.xsumm.append(float(pieces[l]) * self.xvector[0])
+            self.ysumm.append(float(pieces[l+1]) * self.xvector[1])
+            self.zsumm.append(float(pieces[l+2]) * self.xvector[2])
+
+        if line.strip() != '' and i >= 7 + self.natoms and frameEnd >= blankCount >= frameBegin:
+            pieces = line.split()
+            self.xpos.append(float(pieces[l]) * self.xvector[0])
+            self.ypos.append(float(pieces[l+1]) * self.xvector[1])
+            self.zpos.append(float(pieces[l+2]) * self.xvector[2])
+
+            self.xsumm[k]+=(float(pieces[l]) * self.xvector[0])
+            self.ysumm[k]+=(float(pieces[l+1]) * self.xvector[1])
+            self.zsumm[k]+=(float(pieces[l+2]) * self.xvector[2])
+
+            k += 1
+            if k == 10:
+               num += 1
+
+
+        if line.strip() == '':
+            blankCount += 1
+            k = 0
+
+        #if line.strip() == '' and i > 8 and frameEnd >= blankCount >= frameBegin:
+                #print blankCount
+                #print "Len self atoms: ",len(self.atoms)
+                #dist1.extend(self.calculate(self.atoms,cutoff))
+                #k = 0
+                #self.atoms = [] 
+        #print blankCount
+        i += 1
+    #print len(dist1)
+    #dist1.extend(self.calculate(self.atoms,cutoff))
+    #dist2.extend(self.calculate(self.atoms_initial,cutoff))
+    print num 
+    f.close()
+    self.nframes = i - blankCount - 8
+    if (nbins != None):
+        bins = nbins
+    else:
+        bins = 200
+
+    #hist1 =plt.hist(dist1, bins,normed=True,color='yellow' )
+    #hist2 =plt.hist(dist2, bins,normed=True,color='red')
+
+    #plt.ylim(0,max(dist1)*1.2)
+    #if fileSave != None:
+    #   plt.title(title)
+    #   fig = plt.gcf()
+    #   plt.savefig(fileSave)
+
+    #plt.show()
 
   def calculate(self, atoms, cutoff=None, xyz=None):
     print cutoff
