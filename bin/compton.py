@@ -7,6 +7,7 @@ Usage:
   {cmd} sqw2jpq <filename> <theta> <energy> [options]
   {cmd} jpq2rhop <filename> [options]
   {cmd} xrts2sqw <filename> <energy> [options]
+  {cmd} summ_rule <filename> [options]
   {cmd} -h
 
 Options:
@@ -192,6 +193,19 @@ def xrts2sqw(args):
                   )
     out.write(header)
     sqw.save(out)
+
+def summ_rule_compton(args):
+    filename = args['<filename>']
+    column = args['--column'] or 1
+    out = args['--output']
+
+
+    data = analysis.Curve.from_file(filename, y=column)
+
+    # switch to energy tranfer
+
+    print analysis.sum_rule(data)
+
 
 if __name__ == "__main__":
   usage = __doc__.format(cmd=os.path.basename(sys.argv[0]))

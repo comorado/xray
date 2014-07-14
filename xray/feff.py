@@ -510,7 +510,7 @@ class CalculateRadialDistribution(object):
   def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None, pos=None,cutoff=None, fileSave=None, title = None,nbins=None):
     if filename:
       if xyz == None and pos == None:
-        print cutoff
+        #print cutoff
         self.load(filename, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
       elif pos != None: 
         self.loadPos(filename, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
@@ -607,11 +607,11 @@ class CalculateRadialDistribution(object):
                 y = float(pieces[l+1]) * self.yvector[1],
                 z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
-            self.atoms.append(AtomXYZ(
-                x = float(pieces[l]) * self.xvector[0],
-                y = float(pieces[l+1]) * self.yvector[1],
-                z = float(pieces[l+2]) * self.zvector[2],
-                r = 0))
+            #self.atoms.append(AtomXYZ(
+            #    x = float(pieces[l]) * self.xvector[0],
+            #    y = float(pieces[l+1]) * self.yvector[1],
+            #    z = float(pieces[l+2]) * self.zvector[2],
+            #    r = 0))
 
         if line.strip() != '' and i >= 7 + self.natoms and frameEnd >= blankCount >= frameBegin:
             pieces = line.split()
@@ -638,6 +638,8 @@ class CalculateRadialDistribution(object):
     self.atoms = [] 
      
     f.close()
+    #for p in dist1: print '%0.5e' % p
+
     self.nframes = i - blankCount - 8
     if (nbins != None):
         bins = nbins
@@ -738,7 +740,7 @@ class CalculateRadialDistribution(object):
     #print len(dist1)
     #dist1.extend(self.calculate(self.atoms,cutoff))
     #dist2.extend(self.calculate(self.atoms_initial,cutoff))
-    print num 
+    #print num 
     f.close()
     self.nframes = i - blankCount - 8
     if (nbins != None):
@@ -758,7 +760,7 @@ class CalculateRadialDistribution(object):
     #plt.show()
 
   def calculate(self, atoms, cutoff=None, xyz=None):
-    print cutoff
+    #print cutoff
     if cutoff == None:
        cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])
        if cutoff > 5:

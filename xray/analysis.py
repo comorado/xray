@@ -288,6 +288,17 @@ def normalize_integral(curve, norm=1.0, xmin=None, xmax=None):
 
   return curve.__class__(curve.x, new_y, new_s)
 
+@processor
+def summ_rule(curve, norm=1.0, xmin=None, xmax=None):
+  """
+  Normalize curve to set integral to a given value.
+  """
+  from scipy.interpolate import splrep, splint
+  if xmin is None: xmin = curve.x[0]
+  if xmax is None: xmax = curve.x[-1]
+
+  tck = splrep(curve.x, curve.y)
+  return splint(xmin, xmax, tck)
 
 @processor
 def normalize_integral_trapz(curve, norm=1.0):
