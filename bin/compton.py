@@ -7,7 +7,7 @@ Usage:
   {cmd} sqw2jpq <filename> <theta> <energy> [options]
   {cmd} jpq2rhop <filename> [options]
   {cmd} xrts2sqw <filename> <energy> [options]
-  {cmd} summ_rule <filename> [options]
+  {cmd} summ_rule_compton <filename> [options]
   {cmd} -h
 
 Options:
@@ -71,6 +71,7 @@ opts_schema = Schema({
   'sqw2jpq': bool,
   'jpq2rhop': bool,
   'xrts2sqw': bool,
+  'summ_rule_compton': bool
 })
 
 
@@ -197,14 +198,16 @@ def xrts2sqw(args):
 def summ_rule_compton(args):
     filename = args['<filename>']
     column = args['--column'] or 1
+    symmetrize = args['--symmetrize']
     out = args['--output']
-
+    #print args
 
     data = analysis.Curve.from_file(filename, y=column)
-
-    # switch to energy tranfer
-
-    print analysis.sum_rule(data)
+    
+    if symmetrize:
+      data = data.extend_symmetric()
+    #print data
+    print analysis.summ_rule(data)
 
 
 if __name__ == "__main__":
@@ -222,7 +225,7 @@ if __name__ == "__main__":
     sys.exit(e.code)
     #sys.stderr.write(str(e) + "\n")
 
-  cmds = ['jpq2sqw', 'sqw2jpq', 'jpq2rhop', 'xrts2sqw']
+  cmds = ['jpq2sqw', 'sqw2jpq', 'jpq2rhop', 'xrts2sqw', 'summ_rule_compton']
 
   for cmd in cmds:
     if args[cmd]:
