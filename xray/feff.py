@@ -649,11 +649,17 @@ class CalculateRadialDistribution(object):
     hist1 =plt.hist(dist1, bins,normed=True,color='yellow' )
     hist2 =plt.hist(dist2, bins,normed=True,color='red')
 
+    print np.mean(dist1)
+    print np.std(dist1)
+
     plt.ylim(0,max(dist1)*1.2)
     if fileSave != None:
+       fileSame = open(fileSave+".dat",'w')
+       for item in dist1:
+         print >> fileSame, item
        plt.title(title)
        fig = plt.gcf()
-       plt.savefig(fileSave)
+       plt.savefig(fileSave+".png")
 
     plt.show()
 
