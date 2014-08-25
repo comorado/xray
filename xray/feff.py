@@ -663,6 +663,9 @@ class CalculateRadialDistribution(object):
        #fileName = open(fileSave+".dat",'w')
        #for item in dist1:
        #  print >> fileName, item
+       plt.ylim((0,1))
+       if cutoff != None:
+         plt.ylim((1.5,cutoff))
        plt.title(title)
        fig = plt.gcf()
        plt.savefig(fileSave+".png")
