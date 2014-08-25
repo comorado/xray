@@ -507,13 +507,13 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename, frameBegin=None, frameEnd=None,xyz=None, pos=None,cutoff=None, fileSave=None, title = None,nbins=None):
+  def __init__(self, filename,initial = 1, frameBegin=None, frameEnd=None,xyz=None, pos=None,cutoff=None, fileSave=None, title = None,nbins=None):
     if filename:
       if xyz == None and pos == None:
         #print cutoff
-        self.load(filename, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
+        self.load(filename, initial, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
       elif pos != None: 
-        self.loadPos(filename, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
+        self.loadPos(filename, initial, cutoff, frameBegin, frameEnd, fileSave, title, nbins)
       elif xyz != None:
         self.loadXYZ(filename,frameBegin, frameEnd)
 
@@ -563,11 +563,13 @@ class CalculateRadialDistribution(object):
     hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
     plt.show()
 
-  def load(self, filename, cutoff=None, frameBegin=None, frameEnd=None, fileSave=None, title = None, nbins = None):
+  def load(self, filename, initial = 1, cutoff=None, frameBegin=None, frameEnd=None, fileSave=None, title = None, nbins = None):
  
     self.filename = filename
     self.atoms = []
-    self.atoms_initial = []
+    if initial:
+      self.atoms_initial = []
+
     self.atoms_final = []
     self.scale = 1
     self.natoms = 0
@@ -600,7 +602,7 @@ class CalculateRadialDistribution(object):
             pieces = line.split()
             self.natoms = float(pieces[l])
 
-        if i > 7 and i < 7 + self.natoms:
+        if initial and i > 7 and i < 7 + self.natoms:
             pieces = line.split()
             self.atoms_initial.append(AtomXYZ(
                 x = float(pieces[l]) * self.xvector[0],
@@ -634,7 +636,10 @@ class CalculateRadialDistribution(object):
         i += 1
     #print len(dist1)
     dist1.extend(self.calculate(self.atoms,cutoff))
-    dist2.extend(self.calculate(self.atoms_initial,cutoff))
+
+    if initial:
+      dist2.extend(self.calculate(self.atoms_initial,cutoff))
+
     self.atoms = [] 
      
     f.close()
@@ -647,16 +652,17 @@ class CalculateRadialDistribution(object):
         bins = 200
 
     hist1 =plt.hist(dist1, bins,normed=True,color='yellow' )
-    hist2 =plt.hist(dist2, bins,normed=True,color='red')
+    if initial:
+      hist2 =plt.hist(dist2, bins,normed=True,color='red')
 
     print np.mean(dist1)
     print np.std(dist1)
 
     plt.ylim(0,max(dist1)*1.2)
     if fileSave != None:
-       fileSame = open(fileSave+".dat",'w')
-       for item in dist1:
-         print >> fileSame, item
+       #fileName = open(fileSave+".dat",'w')
+       #for item in dist1:
+       #  print >> fileName, item
        plt.title(title)
        fig = plt.gcf()
        plt.savefig(fileSave+".png")
