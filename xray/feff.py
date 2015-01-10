@@ -1,7 +1,7 @@
 import numpy as np
 from itertools import cycle
 from scipy.interpolate import splrep, splint
-from numpy import fft
+from numpy import fft, pi
 #from .lib import fortranfile
 import fortranfile, random
 from operator import itemgetter, attrgetter
@@ -386,7 +386,7 @@ class Lattice(object):
         #print dx,dy,dz
        if (i,j,k) ==(0,0,0):
           self.atoms.append(Atom(
-	      x = xl,
+	  x = xl,
       	  y = yl,
           z = zl,
       	  pot = 0,
@@ -507,7 +507,11 @@ class AtomXYZ(object):
 
 
 class CalculateRadialDistribution(object):
-  def __init__(self, filename,initial = 1, frameBegin=None, frameEnd=None,xyz=None, pos=None,cutoff=None, fileSave=None, title = None,nbins=None):
+  """
+    Calculate pair distribution function, from the XDATCAR file, 
+    from the specified frame. Saves the *.png file 
+  """
+  def __init__(self, filename, initial = 1, frameBegin=None, frameEnd=None,xyz=None, pos=None,cutoff=None, fileSave=None, title = None,nbins=None):
     if filename:
       if xyz == None and pos == None:
         #print cutoff
@@ -559,8 +563,10 @@ class CalculateRadialDistribution(object):
  
     f.close()
     self.nframes = blankCount
-
-    hist1 =plt.hist(dist1,200,normed=1.1,color='yellow' )
+    w =[]
+    for i in range(0,200):
+       w.add(1.0/(4.0*pi*(i*(cutoff/200.0))**2)*cutoff/200.0) 
+    hist1 =plt.hist(dist1,200,normed=true,weights=w,color='yellow' )
     plt.show()
 
   def load(self, filename, initial = 1, cutoff=None, frameBegin=None, frameEnd=None, fileSave=None, title = None, nbins = None):
@@ -651,21 +657,30 @@ class CalculateRadialDistribution(object):
     else:
         bins = 200
 
-    hist1 =plt.hist(dist1, bins,normed=True,color='yellow' )
+    w =[]
+    dr = 4.0*pi*cutoff/bins
+
+    for element in dist1:
+       w.append(1.0/(dr*(element)**2))
+
+
+    hist1 =plt.hist(dist1, bins, normed=True, weights = w, color='yellow' )
     if initial:
-      hist2 =plt.hist(dist2, bins,normed=True,color='red')
+      hist2 = plt.hist(dist2, bins, normed=True, color='red')
 
     print np.mean(dist1)
     print np.std(dist1)
 
-    plt.ylim(0,max(dist1)*1.2)
+    plt.xlim(0,1)
+    #plt.ylim(0,max(dist1)*1.2)
     if fileSave != None:
        #fileName = open(fileSave+".dat",'w')
        #for item in dist1:
        #  print >> fileName, item
-       plt.ylim((0,1))
+       #plt.ylim((0,1))
        if cutoff != None:
          plt.xlim((1.5,cutoff))
+       plt.ylim((0,max(dist1[len(dist1)-5:len(dist1)])))
        plt.title(title)
        fig = plt.gcf()
        plt.savefig(fileSave+".png")
@@ -816,6 +831,7 @@ class CalculateRadialDistribution(object):
        
     #print "Length dist: ", len(dist), m, d
     return dist
+
 
 class InputFile(object):
   def __init__(self, filename):
@@ -1094,3 +1110,164 @@ def load_binmatrix(fname):
   shape = list(dims)[::-1] + [2]
   data = f.readReals('d').reshape(shape)
   return data[...,0] + 1j * data[...,1]
+
+# class for making potential part of feff.inp file using XDATCAR file from VASP
+class vaspXDATCARToFeff(object):
+
+  # constructor of the object, which takes the XDATCAR filename and the frame number and
+  # generates pos array consisting of objects of Atom class
+  def __init__(self, fileName, frame=None, cutOff=None):
+    if (fileName and cutOff):
+    	pos = self.loadPos(fileName,frame, cutOff)
+	self.writeFeff(pos) 
+
+  # loads position of the atoms as from XDATCAR, returns array of Atom in feff form
+  def loadPos(self, filename, frame, cutOff):
+    self.filename = filename
+    self.atoms = []
+    self.atomLabel = []
+
+    self.atoms_final = []
+    self.scale = 1
+    self.natomsArray = [] 
+    self.natoms = 0 
+
+    i = 0
+    blankCount = 0
+    l = 0
+    self.atomCounter = 0
+
+    with open(filename,"r") as f:
+      for line in f:
+        # Read in the thirst six lines of the file
+        if i == 0:
+            pieces = line.split()
+            for atom in pieces:
+              self.atomLabel.append(atom)
+        if i == 1:
+            pieces = line.split()
+            self.scale = float(pieces[l])
+        if i == 2:
+            pieces = line.split()
+            self.xvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 3:
+            pieces = line.split()
+            self.yvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 4:
+            pieces = line.split()
+            self.zvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 6:
+            pieces = line.split()
+	    for numberOfAtoms in pieces:
+              self.natomsArray.append(float(numberOfAtoms))
+              self.natoms += int(numberOfAtoms)
+
+        #if (len(self.natoms) != len(self.atomLabel)):
+        #   print "Number of atom entries and number of atoms is different"
+
+        if line.strip() != '' and frame == blankCount:
+            #if atomCounter > numberOfAtoms:
+            #   print "Too many atom entries in the frame: ", atomCounter
+
+	    if (self.atomCounter == 0):
+               pieces = line.split()
+
+               self.atomInit = Atom(
+                   x = self.xvector[0]*float(pieces[l]),
+                   y = self.yvector[1]*float(pieces[l+1]),
+                   z = self.zvector[2]*float(pieces[l+2]),
+                   pot = 0,
+                   tag = self.atomLabel[0],
+                   r = 0,
+                   n = self.atomCounter)
+
+               self.atoms.append(Atom(
+                   x = 0,
+                   y = 0,
+                   z = 0,
+                   pot = 0,
+                   tag = self.atomLabel[0],
+                   r = 0,
+                   n = self.atomCounter))
+               self.atomCounter += 1
+       
+               for ix in range(-1,2):
+                       dist = 0.0
+                       xtran =  self.xvector[0] * (ix + float(pieces[l])) - self.atomInit.x
+                       #xtran =  self.xvector[0] * ix
+                       dist += (xtran)**2
+                       if (dist**(0.5) < cutOff):
+                          #print dist**(0.5)
+                          for iy in range(-1,2):
+                             ytran =  self.yvector[1] * (iy + float(pieces[l+1])) - self.atomInit.y
+                             #ytran =  self.yvector[1] * iy
+        
+                             if ((dist+(ytran)**2)**(0.5) < cutOff):
+                                dist += (ytran)**2
+                                for iz in range(-1,2):
+                                   ztran =  self.zvector[2] * (iz + float(pieces[l+2])) - self.atomInit.z
+                                   #ztran =  self.zvector[2] * iz
+                                   #dist += (ztran)**2
+           
+                                   if (dist + (ztran)**2)**(0.5) < cutOff:
+                                      dist += (ztran)**2
+                                      self.atoms.append(Atom(
+                                          x = xtran,
+                                          y = ytran,
+                                          z = ztran,
+                                          pot = 1,
+                                          tag = self.atomLabel[0],
+                                          r = dist**(0.5),
+                                          n = self.atomCounter))
+                                      self.atomCounter+=1
+
+            else:
+                pieces = line.split()
+
+            	dist = 0.0
+                for ix in range(-1,2):
+                       dist = 0.0
+                       xtran =  self.xvector[0] * (ix + float(pieces[l])) - self.atomInit.x
+                       #xtran =  self.xvector[0] * ix
+                       dist += (xtran)**2
+                       if (dist**(0.5) < cutOff):
+                          for iy in range(-1,2):
+                             ytran =  self.yvector[1] * (iy + float(pieces[l+1])) - self.atomInit.y
+                             #ytran =  self.yvector[1] * iy
+        
+                             if ((dist+(ytran)**2)**(0.5) < cutOff):
+                                dist += (ytran)**2
+                                for iz in range(-1,2):
+                                   ztran =  self.zvector[2] * (iz + float(pieces[l+2])) - self.atomInit.z
+                                   #ztran =  self.zvector[2] * iz
+                                   #dist += (ztran)**2
+           
+                                   if (dist + (ztran)**2)**(0.5) < cutOff:
+                                      dist += (ztran)**2
+                                      self.atoms.append(Atom(
+                                          x = xtran,
+                                          y = ytran,
+                                          z = ztran,
+                                          pot = 1,
+                                          tag = self.atomLabel[0],
+                                          r = dist**(0.5),
+                                          n = self.atomCounter))
+                                      self.atomCounter+=1
+             
+	# Update the frame counter
+        if line.strip() == '':
+           blankCount += 1
+
+        # Update the counter of the line number
+        i += 1
+     
+    f.close()
+
+    self.atoms.sort(key=attrgetter('r'))
+    return self.atoms
+
+  def writeFeff(self,pos):
+      i = 0
+      for atom in pos:
+        print ' {0:+.5f} {1:+.5f} {2:+.5f} {3:3d} {4} {5:+.5f} {6}'.format(atom.x, atom.y, atom.z, atom.pot, atom.tag, atom.r, i-1)
+        i += 1
