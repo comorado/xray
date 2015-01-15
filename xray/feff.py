@@ -658,18 +658,28 @@ class CalculateRadialDistribution(object):
         bins = 200
 
     w =[]
-    dr = 4.0*pi*cutoff/bins
+    dr = cutoff/bins
 
     for element in dist1:
-       w.append(1.0/(dr*(element)**2))
+       w.append(1.0/(4.0*pi * element**2 * dr))
 
 
-    hist1 =plt.hist(dist1, bins, normed=True, weights = w, color='yellow' )
+    ht1 = plt.hist(dist1, bins, normed=True, weights = w, color='yellow' )
+
     if initial:
       hist2 = plt.hist(dist2, bins, normed=True, color='red')
 
-    print np.mean(dist1)
-    print np.std(dist1)
+    if (True and initial):
+      for i in range(0,bins):
+        print ht1[1][i],ht1[0][i],hist2[0][i]
+    elif (True):
+      for i in range(0,bins):
+        print ht1[1][i],ht1[0][i]
+
+
+
+    #print np.mean(dist1)
+    #print np.std(dist1)
 
     plt.xlim(0,1)
     #plt.ylim(0,max(dist1)*1.2)
@@ -680,7 +690,8 @@ class CalculateRadialDistribution(object):
        #plt.ylim((0,1))
        if cutoff != None:
          plt.xlim((1.5,cutoff))
-       plt.ylim((0,max(dist1[len(dist1)-5:len(dist1)])))
+       #plt.ylim((0,max(dist1[len(dist1)-5:len(dist1)])))
+       plt.ylim((0,2))
        plt.title(title)
        fig = plt.gcf()
        plt.savefig(fileSave+".png")
