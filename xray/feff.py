@@ -621,7 +621,7 @@ class CalculateRadialDistribution(object):
             #    z = float(pieces[l+2]) * self.zvector[2],
             #    r = 0))
 
-        if line.strip() != '' and i >= 7 + self.natoms and frameEnd >= blankCount >= frameBegin:
+        if line.strip() != '' and line.startswith("Direct")!=1 and i >= 7 + self.natoms and frameEnd >= blankCount >= frameBegin:
             pieces = line.split()
             self.atoms.append(AtomXYZ(
                 x = float(pieces[l]) * self.xvector[0],
@@ -629,10 +629,10 @@ class CalculateRadialDistribution(object):
                 z = float(pieces[l+2]) * self.zvector[2],
                 r = 0))
 
-        if line.strip() == '':
+        if line.strip() == '' or line.startswith("Direct"):
            blankCount += 1
 
-        if line.strip() == '' and i > 8 and frameEnd >= blankCount >= frameBegin:
+        if line.strip() == '' or line.startswith("Direct") and i > 8 and frameEnd >= blankCount >= frameBegin:
                 #print blankCount
                 #print "Len self atoms: ",len(self.atoms)
                 dist1.extend(self.calculate(self.atoms,cutoff))
