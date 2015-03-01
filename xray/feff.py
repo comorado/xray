@@ -8,6 +8,7 @@ from operator import itemgetter, attrgetter
 from . import const
 import matplotlib.pyplot as plt
 import sys as sys
+import copy as copy
 
 """
 This file contains some old cruft that is duplicated elsewhere.
@@ -640,7 +641,7 @@ class CalculateRadialDistribution(object):
                 self.atoms = [] 
         #print blankCount
         i += 1
-    #print len(dist1)
+
     dist1.extend(self.calculate(self.atoms,cutoff))
 
     if initial:
@@ -806,7 +807,6 @@ class CalculateRadialDistribution(object):
        cutoff = min([self.xvector[0],self.yvector[1],self.zvector[2]])
        if cutoff > 5:
           cutoff = 4
-      
 
     dist = []
     m = 0
@@ -826,6 +826,7 @@ class CalculateRadialDistribution(object):
                       if d != 0 and d < cutoff:
                         dist.append(d)
                         m += 1
+
     else:
        for atom1 in atoms:
          for atom2 in atoms:
@@ -842,6 +843,138 @@ class CalculateRadialDistribution(object):
        
     #print "Length dist: ", len(dist), m, d
     return dist
+
+class CenterOfMass(object):
+  """
+    Calculate position of center of mass from the XDATCAR file 
+  """
+  def __init__(self, filename, initial = 1, frameBegin=None, frameEnd=None, fileSave=None):
+    if filename:
+        self.load(filename, initial, frameBegin, frameEnd, fileSave)
+
+  def load(self, filename, initial = 1, frameBegin=None, frameEnd=None, fileSave=None, V=True):
+ 
+    self.filename = filename
+    self.atoms = []
+    self.atoms1 = []
+    if initial:
+      self.atoms_initial = []
+
+    self.atoms_final = []
+    self.scale = 1
+    self.natoms = 0
+
+    if frameBegin == None:
+       frameBegin = 0
+    if frameEnd == None:
+       frameEnd = sys.maxint 
+
+    i = 0
+    blankCount = 0
+    dist1 = []
+    dist2 = []
+    l = 0
+    #if (fileSave != None):
+
+    with open(filename,"r") as f:
+      # Process each frame, frames have empty line between them
+      for line in f:
+        # Read vectors and number of atoms in the input
+        if i == 1:
+            pieces = line.split()
+            self.scale = float(pieces[l])
+        if i == 2:
+            pieces = line.split()
+            self.xvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 3:
+            pieces = line.split()
+            self.yvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 4:
+            pieces = line.split()
+            self.zvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if i == 6:
+            pieces = line.split()
+            self.natoms = float(pieces[l])
+        # Read vectors from input file
+        if initial and i > 7 and i < 7 + self.natoms:
+            pieces = line.split()
+            self.atoms_initial.append(AtomXYZ(
+                x = float(pieces[l]) * self.xvector[0],
+                y = float(pieces[l+1]) * self.yvector[1],
+                z = float(pieces[l+2]) * self.zvector[2],
+                r = 0))
+
+        if line.strip() != '' and i >= 7 + self.natoms and frameEnd >= blankCount >= frameBegin:
+            pieces = line.split()
+            self.atoms.append(AtomXYZ(
+                x = float(pieces[l]) * self.xvector[0],
+                y = float(pieces[l+1]) * self.yvector[1],
+                z = float(pieces[l+2]) * self.zvector[2],
+                r = 0))
+
+        if line.strip() == '':
+           blankCount += 1
+
+        if (not V):
+                # Calculate center of mass position while frames are within the boundaries
+                if line.strip() == '' and i > 8 and frameEnd >= blankCount >= frameBegin:
+                  res = self.calculate(self.atoms)
+                  print blankCount, res[0], res[1],res[2]
+                  self.atoms = [] 
+        else:
+                if line.strip() == '' and i > 8 and frameEnd >= blankCount >= frameBegin and len(self.atoms1) > 0:
+                  res = self.calculateV(self.atoms1,self.atoms)
+                  print blankCount, res[0], res[1],res[2] 
+                  self.atoms1 = copy.copy(self.atoms)
+                  self.atoms = [] 
+
+        i += 1
+        self.atoms1 = copy.copy(self.atoms)
+    self.atoms1 = copy.copy(self.atoms)
+    self.atoms = [] 
+    f.close()
+    self.nframes = i - blankCount - 8
+
+  # Calculate center of mass position
+  def calculate(self, atoms):
+
+    dx = 0.0
+    dy = 0.0
+    dz = 0.0
+    for atom1 in atoms:
+        dx += atom1.x
+        dy += atom1.y
+        dz += atom1.z
+
+    return (dx/len(atoms),dy/len(atoms),dz/len(atoms))
+
+  def calculateV(self, pos1, pos2):
+
+    dvx = 0.0
+    dvy = 0.0
+    dvz = 0.0
+    for i in range(0, len(pos1)):
+        dx = pos2[i].x-pos1[i].x
+        dy = pos2[i].y-pos1[i].y
+        dz = pos2[i].z-pos1[i].z
+        #print pos2[i].x, pos1[i].x
+        # Check for the jump
+        if dx >= self.xvector:
+          dvx += dx-self.xvector
+        else:
+          dvx += dx
+
+        if dy >= self.yvector:
+          dvy += dy-self.yvector
+        else:
+          dvy += dy
+
+        if dz >= self.zvector:
+          dvz += dz-self.zvector
+        else:
+          dvz += dz
+
+    return (dvx/len(pos1),dvy/len(pos1),dvz/len(pos1))
 
 
 class InputFile(object):
