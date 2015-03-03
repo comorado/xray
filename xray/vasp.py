@@ -26,6 +26,7 @@ class Atom(object):
 def readHeader(f):
       """
       Reads the header information form the XDATCAR file
+      Leaves file handler at the position past the header
       """
       #f = open(filename,"r")
       nextLine = True
@@ -53,28 +54,28 @@ def readHeader(f):
         if totalLines == 6:
             pieces = line.split()
             natoms = float(pieces[l])
-        totalLines += 1
-        if (totalLines > 6):
+        if (line.strip() != '' and totalLines > 5):
             nextLine = False
-      # Go to the top of the file
-      f.seek(0)
+            line = f.readline()
+
+        totalLines += 1
       return (natoms, xvector, yvector, zvector)
 
 def countFrames(f):
       """
       Helper method counts number of frames in the file
+      Starts counting number of frames where the file handler was left
       """
       numberOfAtoms = readHeader(f)[0] 
       nextLine = True
       blankLines = 0
       totalLines = 0
-      headerLines = 8
       while(nextLine):
          line = f.readline()
          totalLines += 1
-         if line.strip() == '' and totalLines > headerLines:
+         if line.strip() == '':
             blankLines += 1
-            frameCount = float(totalLines - headerLines - blankLines) / numberOfAtoms  
+            frameCount = float(totalLines - blankLines) / numberOfAtoms  
             assert (frameCount.is_integer()), "Not consistent number of entries in frame "+ str(blankLines)
 
          if (line == ""):
@@ -82,105 +83,57 @@ def countFrames(f):
       f.seek(0) 
       return int(frameCount)
 
-def readFrame(f, frameNumber = 1, fileName = None):
+def readFrame(f):
       """
-      Helper method, reads specified frame from the file handler,
-      returns array of objects of atoms
+      Helper method, reads next available frame
       """
-      nextLine = True
-      blankLines = 0
-      totalLines = 0
-      headerLines = 8
       l = 0
       atoms = []
-      if (fileName == None):
-         numberOfAtoms, xvector, yvector, zvector  = readHeader(f) 
    
-         while(nextLine):
+      line = f.readline()
+      while(line.strip() != ''):
+            pieces = line.split()
+            atoms.append(Atom(
+              x = float(pieces[l  ]),
+              y = float(pieces[l+1]),
+              z = float(pieces[l+2]),
+              r = 0))
+   
             line = f.readline()
-            totalLines += 1
-   
-            if (line.strip() == '' and totalLines > headerLines):
-               blankLines += 1
-   
-               while (blankLines == frameNumber):
-                  line = f.readline()
-   
-                  if line.strip() != '':
-                     pieces = line.split()
-                     atoms.append(Atom(
-                          x = float(pieces[l  ]) * xvector[0],
-                          y = float(pieces[l+1]) * yvector[1],
-                          z = float(pieces[l+2]) * zvector[2],
-                          r = 0))
-                  else:
-                     blankLines += 1        
-                     nextLine = False
-   
-         f.seek(0) 
-         assert (len(atoms) == numberOfAtoms), "Number of atoms is wrong " + str(len(atoms))
-         assert (len(atoms) != 0), "Frame number is out of bounds " + str(len(atoms))
-         
-         return atoms
-
-      else: 
-         fileHandler = open(fileName,'r') 
-         numberOfAtoms, xvector, yvector, zvector  = readHeader(fileHandler) 
-         while(nextLine):
-            line = f.readline()
-            totalLines += 1
-   
-            if (line.strip() == ''):
-               blankLines += 1
-   
-               while (blankLines == 1):
-                  line = f.readline()
-   
-                  if (line.strip() != ''):
-                     pieces = line.split()
-                     atoms.append(Atom(
-                          x = float(pieces[l  ]) * xvector[0],
-                          y = float(pieces[l+1]) * yvector[1],
-                          z = float(pieces[l+2]) * zvector[2],
-                          r = 0))
-                  else:
-                     blankLines += 1        
-   
-         assert (len(atoms) == numberOfAtoms), "Number of atoms is wrong " + str(len(atoms))
-         assert (len(atoms) != 0), "Frame number is out of bounds " + str(len(atoms))
-         
-         return atoms
+      return atoms
 
 def comV(f, frameMax = None):
     """
     Calculates center of mass velocity by going through frames
     """
-    previousFrame = readFrame(f)	
     if frameMax == None:
        nframe = countFrames(f)
     else:
        nframe = frameMax
     
+    numberOfAtoms, xvector, yvector, zvector  = readHeader(f) 
+    print numberOfAtoms, xvector, yvector, zvector 
+    previousFrame = readFrame(f)	
+
+    print len(previousFrame)
     for i in xrange(2, nframe-1):
-        currentFrame = readFrame(f, i)
-        print i, "\t".join(map(str,comVFrame(f, currentFrame, previousFrame)))
+        currentFrame = readFrame(f)
+        print i, "\t".join(map(str,comVFrame(f, currentFrame, previousFrame,numberOfAtoms, xvector, yvector, zvector)))
         previousFrame = currentFrame
 
-def comVFrame(f, currentFrame, previousFrame):
+def comVFrame(f, currentFrame, previousFrame, numberOfAtoms, xvector, yvector, zvector):
    """
    Helper method for calculating velocity of COM between two adjecent frames
    Checks if there is a translation by the size of unit cell
    """
    comVelocity = []
-   numberOfAtoms, xvector, yvector, zvector  = readHeader(f) 
-   #print readHeader(f)
    dvx = 0
    dvy = 0
    dvz = 0
    for i in xrange(0, int(numberOfAtoms)):
-        dx = currentFrame[i].x-previousFrame[i].x
-        dy = currentFrame[i].y-previousFrame[i].y
-        dz = currentFrame[i].z-previousFrame[i].z
+        dx = (currentFrame[i].x-previousFrame[i].x) * xvector[0]
+        dy = (currentFrame[i].y-previousFrame[i].y) * yvector[1]
+        dz = (currentFrame[i].z-previousFrame[i].z) * zvector[2]
 
         if abs(dx)+0.1 >= xvector[0]:
            dx -= math.copysign(xvector[0],dx)
