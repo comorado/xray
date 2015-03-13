@@ -1,5 +1,7 @@
 import numpy as np
 import math
+import random
+from operator import itemgetter, attrgetter
 
 """
 This file contains tool box for working with XDATCAR file 
@@ -35,9 +37,11 @@ def readHeader(f):
       yvector = 0.0
       zvector = 0.0
       totalLines = 0
+      atomLabel = []
       l = 0
       while (nextLine):
         line = f.readline()
+        # Read label
         if totalLines == 1:
             pieces = line.split()
             scale = float(pieces[l])
@@ -50,6 +54,10 @@ def readHeader(f):
         if totalLines == 4:
             pieces = line.split()
             zvector = (float(pieces[l]),float(pieces[l+1]),float(pieces[l+2]))
+        if totalLines == 5:
+            pieces = line.split()
+            for atom in pieces:
+              atomLabel.append(atom)
         if totalLines == 6:
             pieces = line.split()
             natoms = float(pieces[l])
@@ -58,7 +66,7 @@ def readHeader(f):
             line = f.readline()
 
         totalLines += 1
-      return (natoms, xvector, yvector, zvector)
+      return (natoms, xvector, yvector, zvector, atomLabel)
 
 def countFrames(f):
       """
@@ -103,6 +111,81 @@ def readFrame(f):
    
             line = f.readline()
       return atoms
+
+def skipFrame(f):
+      """
+      Skips next available frame
+      """
+      line = f.readline()
+            
+      while(line.find('Direct') == -1 and line.strip() != ''):
+            line = f.readline()
+            if (line.find('Direct') != -1):
+                print line.find('Direct') != -1
+            line = f.readline()
+
+def readFrameNum(f, frame):
+      """
+      Returns array of atoms at the frame
+      """
+      i = 1
+      while (i < frame):
+         skipFrame(f) 
+         i+=1
+    
+      return readFrame(f) 
+
+def vaspFrameToFeff(f, frame, cutOff):
+      """
+      Returns feff style input for the atom position, starting from random atom position
+      in the frame
+      """
+
+      outputAtoms = []
+      numberOfAtoms, xvector, yvector, zvector, atomLabel  = readHeader(f) 
+      atoms = readFrameNum(f,frame)
+
+      random.seed()
+      randInt = random.randrange(len(atoms))
+      centerAtom = atoms[randInt]
+
+      # Assume one kind of atoms in the XDATCAR input
+      for nextAtom in atoms:
+        for ix in range(-1,2):
+           dist = 0.0
+           xtran =  xvector[0] * (ix + nextAtom.x - centerAtom.x)
+           dist += (xtran)**2
+           if (dist**(0.5) < cutOff):
+                  for iy in range(-1,2):
+                     ytran =  yvector[1] * (iy + nextAtom.y - centerAtom.y)
+          
+                     if ((dist+(ytran)**2)**(0.5) < cutOff):
+                        dist += (ytran)**2
+                        for iz in range(-1,2):
+                            ztran =  zvector[2] * (iz + nextAtom.z - centerAtom.z) 
+             
+                            if (dist + (ztran)**2)**(0.5) < cutOff:
+                                  dist += (ztran)**2
+                                  outputAtoms.append(Atom(
+                                     x = xtran,
+                                     y = ytran,
+                                     z = ztran,
+                                     pot = 1,
+                                     tag = atomLabel[0],
+                                     r = dist**(0.5),
+                                     n = 0))
+      outputAtoms.sort(key=attrgetter('r'))
+      i = 0
+      for atom in outputAtoms:
+         if (i > 13):
+            pot = 13
+         else:
+            pot = i
+
+         print ' {0: .5f} {1: .5f} {2: .5f} {3:3d} {4} {5: .5f} {6}'.format(atom.x, atom.y, atom.z, pot, atom.tag, atom.r, i)
+         i += 1
+      print 'END'
+
 
 def comV(f, frameMax = None):
     """
