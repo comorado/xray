@@ -135,7 +135,7 @@ def readFrameNum(f, frame):
     
       return readFrame(f) 
 
-def vaspFrameToFeff(f, frame, cutOff):
+def vaspFrameToFeff(f, frame, cutOff, w=None):
       """
       Returns feff style input for the atom position, starting from random atom position
       in the frame
@@ -176,15 +176,27 @@ def vaspFrameToFeff(f, frame, cutOff):
                                      n = 0))
       outputAtoms.sort(key=attrgetter('r'))
       i = 0
+
+      if w is None:
+        print "* ",'{0}'.format(frame)," frame used to generate POT input"
+      else:
+         print >> w,"* ",'{0}'.format(frame)," frame used to generate POT input"
+
       for atom in outputAtoms:
          if (i > 13):
             pot = 13
          else:
             pot = i
 
-         print ' {0: .5f} {1: .5f} {2: .5f} {3:3d} {4} {5: .5f} {6}'.format(atom.x, atom.y, atom.z, pot, atom.tag, atom.r, i)
+         if w is None:
+           print ' {0: .5f} {1: .5f} {2: .5f} {3:3d} {4} {5: .5f} {6}'.format(atom.x, atom.y, atom.z, pot, atom.tag, atom.r, i)
+         else:
+           print >> w, ' {0: .5f} {1: .5f} {2: .5f} {3:3d} {4} {5: .5f} {6}'.format(atom.x, atom.y, atom.z, pot, atom.tag, atom.r, i)
          i += 1
-      print 'END'
+      if (w is None):
+        print 'END'
+      else:
+        print >> w, 'END'
 
 
 def comV(f, frameMax = None):
