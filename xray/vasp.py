@@ -155,25 +155,26 @@ def vaspFrameToFeff(f, frame, cutOff, w=None):
            dist = 0.0
            xtran =  xvector[0] * (ix + nextAtom.x - centerAtom.x)
            dist += (xtran)**2
-           if (dist**(0.5) < cutOff):
-                  for iy in range(-1,2):
-                     ytran =  yvector[1] * (iy + nextAtom.y - centerAtom.y)
+           #if (dist**(0.5) < cutOff):
+           for iy in range(-1,2):
+             ytran =  yvector[1] * (iy + nextAtom.y - centerAtom.y)
           
-                     if ((dist+(ytran)**2)**(0.5) < cutOff):
-                        dist += (ytran)**2
-                        for iz in range(-1,2):
-                            ztran =  zvector[2] * (iz + nextAtom.z - centerAtom.z) 
-             
-                            if (dist + (ztran)**2)**(0.5) < cutOff:
-                                  dist += (ztran)**2
-                                  outputAtoms.append(Atom(
-                                     x = xtran,
-                                     y = ytran,
-                                     z = ztran,
-                                     pot = 1,
-                                     tag = atomLabel[0],
-                                     r = dist**(0.5),
-                                     n = 0))
+             #if ((dist+(ytran)**2)**(0.5) < cutOff):
+             dist += (ytran)**2
+             for iz in range(-1,2):
+               ztran =  zvector[2] * (iz + nextAtom.z - centerAtom.z) 
+               #print "Hello",ix,iy,iz 
+               dist = xtran**2 + ytran**2 + ztran**2
+               if dist**(0.5) < cutOff:
+                   #dist += ztran**2
+                   outputAtoms.append(Atom(
+                     x = xtran,
+                     y = ytran,
+                     z = ztran,
+                     pot = 1,
+                     tag = atomLabel[0],
+                     r = dist**(0.5),
+                     n = 0))
       outputAtoms.sort(key=attrgetter('r'))
       i = 0
 
